@@ -646,10 +646,9 @@ function mcvChoiceSection({title, subtitle, helper = "", items, selected, mode, 
 
 function mcvChoiceCard({item, selected, mode, action, field = "", detail = [], cost = null}) {
   const additive = mode === "multi";
-  const buttonText = additive ? (selected ? "✓" : "+") : (selected ? "Selected ✓" : "Select");
   const buttonLabel = additive
     ? `${selected ? "Remove" : "Add"} ${item.name}`
-    : `${selected ? "Selected" : "Select"} ${item.name}`;
+    : `${selected ? "Active" : "Select"} ${item.name}`;
 
   return `
     <article class="mcv-choice-card ${selected ? "selected" : ""}">
@@ -661,13 +660,36 @@ function mcvChoiceCard({item, selected, mode, action, field = "", detail = [], c
         <div class="mcv-choice-cost-slot">
           ${cost != null ? `<span class="entry-cost">${escapeHtml(cost)}</span>` : ""}
         </div>
-        <button class="choice-action ${additive ? "compact" : ""} ${selected ? "active" : ""}"
-          data-action="${action}" ${field ? `data-field="${field}"` : ""} data-id="${item.id}" type="button" aria-label="${escapeHtml(buttonLabel)}">
-          ${buttonText}
+        <button class="choice-action equipment-switch ${selected ? "active" : ""}"
+          data-action="${action}" ${field ? `data-field="${field}"` : ""} data-id="${item.id}"
+          type="button" aria-label="${escapeHtml(buttonLabel)}" aria-pressed="${selected ? "true" : "false"}">
+          <span class="switch-led" aria-hidden="true"></span>
+          <span class="switch-track" aria-hidden="true">
+            <span class="switch-mark switch-mark-off">O</span>
+            <span class="switch-thumb"></span>
+            <span class="switch-mark switch-mark-on">I</span>
+          </span>
+          <span class="switch-state" aria-hidden="true">${selected ? "ON" : "OFF"}</span>
         </button>
       </div>
     </article>
   `;
+}
+
+function clearFireteamSelections() {
+  state.roster.corporateClient = null;
+  state.roster.mcv = {
+    profile: null,
+    integratedComponent: null,
+    shield: null,
+    sidearm: null,
+    primaryWeapons: [],
+    equipment: []
+  };
+  state.roster.infantry = [];
+  state.roster.backupMCV = null;
+  state.roster.orbitalOrdnance = [];
+  state.gameState = {};
 }
 
 function renderSummary() {
@@ -724,6 +746,18 @@ function renderSummary() {
       </section>
     `);
   }
+
+  sections.push(`
+    <section class="summary-clear-area">
+      <div class="summary-clear-copy">
+        <strong>CLEAR FIRETEAM</strong>
+        <span>Remove all current selections and start the roster over.</span>
+      </div>
+      <button class="clear-fireteam-button" data-action="clear-fireteam" type="button">
+        CLEAR LIST
+      </button>
+    </section>
+  `);
 
   $("#summaryContent").innerHTML = sections.join("");
 }
@@ -1230,6 +1264,13 @@ document.addEventListener("click", e => {
     state.roster.orbitalOrdnance = state.roster.orbitalOrdnance.filter(x => x !== id);
   } else if (action === "summary-remove-backup") {
     state.roster.backupMCV = null;
+  } else if (action === "clear-fireteam") {
+    const confirmed = confirm(
+      "Clear this Fireteam?\n\nThis removes the MCV configuration, Pilots, Infantry, Corporate Client, Ordnance, and Backup MCV. The operation name and Threat limit will be kept."
+    );
+    if (!confirmed) return;
+    clearFireteamSelections();
+    showToast("Fireteam cleared.");
   } else if (action === "game-status") {
     const key = actionEl.dataset.key;
     state.gameState[key] = {...(state.gameState[key] || {}), status: actionEl.dataset.status};

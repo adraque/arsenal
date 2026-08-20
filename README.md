@@ -1,13 +1,16 @@
-# Arsenal Fireteam Builder — Responsive Stripe Fade
+# Arsenal Fireteam Builder — Clear List + Industrial Switch Pass
 
-Built directly from the latest working builder.
+Built from the responsive stripe-fade version.
 
-Responsive stripe change only:
+Changes:
+- Adds a CLEAR LIST control at the bottom of the Active Fireteam summary.
+- Clear List requires confirmation.
+- It removes MCV configuration, Pilots, Infantry, Corporate Client, Ordnance,
+  Backup MCV, and current Game Mode state.
+- It deliberately preserves the Operation name and Threat limit.
+- Replaces the MCV builder's text Select/Selected/+ controls with one consistent
+  industrial equipment-switch visual.
+- Existing MCV selection logic, validation rules, trashcan controls, responsive
+  stripe fade, palette, and row alignment are preserved.
 
-- Removed diagonal clipping from the top-right header stripe field.
-- Removed diagonal clipping from BUILD / Contract Assets.
-- Hazard stripes keep their top-left to bottom-right angle.
-- Each stripe field now fades smoothly from 0 opacity on the left to full visibility on the right.
-- The fade is percentage-based within the stripe box, so it remains stable across desktop, resized windows, and mobile screens.
-
-No roster rules, validation, builder controls, MCV layout, or other styling were changed.
+No roster construction rules were changed.
