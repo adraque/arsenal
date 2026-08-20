@@ -1,73 +1,38 @@
-# Arsenal Fireteam Builder — First Pass
+# Arsenal Fireteam Builder - Layout Pass
 
-A static, client-side prototype designed to deploy directly to GitHub Pages.
+This is the functional/layout pass built on the previous dark-theme version.
 
-## Included in this pass
+## Changes
 
-- Editable Threat limit (50 is only the default)
-- Operation name
-- Corporate Client selection with perk summary
-- MCV profile, pilot experience, component, shield, sidearm, primary weapons and equipment
-- Live derived MCV Speed / Defense / Armor / Actions
-- Infantry catalog with instant add
-- Quantity controls and removal
-- Heavy Weapons Specialist weapon selection
-- Drag-to-reorder infantry
-- Orbital Ordnance selection
-- Backup Machete support
-- Dynamic construction limits:
-  - Encom extra ordnance
-  - Nile specialist allowance
-  - Veteran loadout caps
-  - Backup Machete infantry/specialist reductions
-- Live Threat total and legality messages
-- Browser save/current-list persistence via localStorage
-- Native Arsenal roster JSON export/import
-- Readable text export
-- Basic Game Mode with Ready / Activated / Downed / KIA states
-- New Recruit compatibility reserved as an adapter layer
+- Removes `TH` from individual item costs; overall totals still use the word `Threat`.
+- Removes the provisional MCV Pilot Experience selector from roster construction.
+- Pilot tab remains the place to hire the actual Green, Experienced, and Veteran Pilot infantry models.
+- Builder MCV stats show chassis/hardware only.
+- Game Mode can select which hired Pilot is currently mounted; Pilot-derived Armor, Tactics, and Actions are applied there dynamically.
+- MCV Profile, Integrated Component, Shield, Sidearm, Primary Weapon, Equipment, and Backup MCV choices are displayed one per descriptive row.
+- Exclusive choices use `Select`; additive choices use square `+` / `✓` controls.
+- Selected rows are highlighted.
+- Corporate Client cards no longer display internal effect classifications.
+- Individual cost numbers are right-aligned.
 
-## Run locally
-
-Because the app loads `data/arsenal.json`, browsers should serve it over HTTP rather than opening `index.html` directly.
-
-From this folder:
+## Local test
 
 ```bash
-python -m http.server 8000
+python3 -m http.server 8000
 ```
 
-Then open:
+Then open `http://localhost:8000`.
 
-```text
-http://localhost:8000
+## GitHub
+
+Replace the corresponding files in the repository, then:
+
+```bash
+git add .
+git commit -m "Refine Arsenal builder layout"
+git push
 ```
 
-## GitHub Pages
+## Pilot/MCV rules note
 
-The folder is intentionally static:
-
-```text
-index.html
-styles.css
-app.js
-data/arsenal.json
-```
-
-It can be placed at the root of a GitHub Pages repository or inside `/docs` if Pages is configured to publish from that folder.
-
-## Important first-pass limitations
-
-- New Recruit `.rosz` import/export is not implemented yet. The internal roster schema is designed so a compatibility adapter can be added without changing the UI data model.
-- Vanguard's copied Specialist profile / random secondary ability is represented in the data, but its configuration UI is not yet implemented.
-- Game Mode currently tracks broad unit states only. Armor/ammo/reload/condition tracking can be added later.
-- Saved-roster browsing/management is not yet surfaced as a full "My Fireteams" screen; Save persists the current roster and keeps a small saved history in localStorage.
-- The UI has not yet been cross-browser/device tested beyond structural checks.
-
-## Source data
-
-`data/arsenal.json` is the consolidated dataset produced from:
-1. Arsenal FAQ & Errata v1.2
-2. Blaster Vol. 07: Arsenal
-3. Official supplement content represented in the community GST
-4. GST identifiers/structure for interoperability
+The Pilot/MCV relationship remains provisional pending clarification from SkullForge. This pass does not introduce an assigned-Pilot roster relationship.

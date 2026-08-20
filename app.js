@@ -1,30 +1,37 @@
 
 const state = {
   data: null,
-  catalogTab: "infantry",
+  activeTab: "mcv",
   search: "",
   roster: null,
   gameState: {}
 };
 
-const $ = (sel) => document.querySelector(sel);
-const $$ = (sel) => [...document.querySelectorAll(sel)];
+const $ = sel => document.querySelector(sel);
+const $$ = sel => [...document.querySelectorAll(sel)];
 
-function slugId(prefix = "id") {
+function uid(prefix = "id") {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function clone(obj) {
+  return JSON.parse(JSON.stringify(obj));
+}
+
+function byId(collection, id) {
+  return collection?.find(x => x.id === id);
 }
 
 function defaultRoster() {
   return {
-    schemaVersion: 1,
+    schemaVersion: 3,
     game: "arsenal",
-    id: slugId("roster"),
+    id: uid("roster"),
     name: "Untitled Operation",
     threatLimit: state.data?.game?.defaultThreatLimit || 50,
     corporateClient: null,
     mcv: {
       profile: null,
-      pilotExperience: null,
       integratedComponent: null,
       shield: null,
       sidearm: null,
@@ -33,28 +40,39 @@ function defaultRoster() {
     },
     infantry: [],
     backupMCV: null,
-    orbitalOrdnance: [],
-    displayOrder: []
+    orbitalOrdnance: []
   };
 }
 
-function byId(collection, id) {
-  return collection.find(x => x.id === id);
-}
-
-function clone(obj) {
-  return JSON.parse(JSON.stringify(obj));
+function normalizeRoster(raw) {
+  const base = defaultRoster();
+  const r = {...base, ...raw};
+  r.schemaVersion = 3;
+  r.mcv = {...base.mcv, ...(raw?.mcv || {})};
+  // Pass 3 removes the provisional build-time Pilot Experience field.
+  // Older native rosters still import cleanly; the legacy field is ignored.
+  delete r.mcv.pilotExperience;
+  r.infantry = Array.isArray(raw?.infantry) ? raw.infantry.map(x => ({
+    entryId: x.entryId || uid("unit"),
+    unitId: x.unitId,
+    quantity: Math.max(1, Number(x.quantity || 1)),
+    config: x.config || {}
+  })) : [];
+  r.orbitalOrdnance = Array.isArray(raw?.orbitalOrdnance) ? raw.orbitalOrdnance : [];
+  r.mcv.primaryWeapons = Array.isArray(r.mcv.primaryWeapons) ? r.mcv.primaryWeapons : [];
+  r.mcv.equipment = Array.isArray(r.mcv.equipment) ? r.mcv.equipment : [];
+  return r;
 }
 
 function effectiveLimits() {
-  const base = clone(state.data.construction);
+  const c = state.data.construction;
   const limits = {
-    infantryMax: base.infantry.max,
-    specialistMax: base.infantry.specialist.max,
-    specialistTypeMax: base.infantry.specialist.maxPerType,
-    pilotMin: base.infantry.pilot.min,
-    pilotMax: base.infantry.pilot.max,
-    ordnanceMax: base.orbitalOrdnance.max,
+    infantryMax: c.infantry.max,
+    specialistMax: c.infantry.specialist.max,
+    specialistTypeMax: c.infantry.specialist.maxPerType,
+    pilotMin: c.infantry.pilot.min,
+    pilotMax: c.infantry.pilot.max,
+    ordnanceMax: c.orbitalOrdnance.max,
     primaryMax: state.data.mcvLoadout.primaryWeapons.max,
     equipmentMax: state.data.mcvLoadout.equipment.max
   };
@@ -64,29 +82,22 @@ function effectiveLimits() {
     limits.infantryMax = 8;
     limits.specialistMax = 3;
   }
-  if (state.roster.mcv.pilotExperience === "veteran") {
-    limits.primaryMax = 1;
-    limits.equipmentMax = 4;
-  }
   return limits;
 }
 
-function getInfantryCount() {
-  return state.roster.infantry.reduce((sum, x) => sum + x.quantity, 0);
-}
-
-function getSpecialistCount() {
-  return state.roster.infantry.reduce((sum, x) => {
-    const unit = byId(state.data.infantryUnits, x.unitId);
-    return sum + (unit?.type === "specialist" ? x.quantity : 0);
+function infantryCount(type = null) {
+  return state.roster.infantry.reduce((sum, entry) => {
+    const unit = byId(state.data.infantryUnits, entry.unitId);
+    if (!unit) return sum;
+    if (type && unit.type !== type) return sum;
+    return sum + entry.quantity;
   }, 0);
 }
 
-function getPilotCount() {
-  return state.roster.infantry.reduce((sum, x) => {
-    const unit = byId(state.data.infantryUnits, x.unitId);
-    return sum + (unit?.type === "pilot" ? x.quantity : 0);
-  }, 0);
+function quantityFor(unitId) {
+  return state.roster.infantry
+    .filter(x => x.unitId === unitId)
+    .reduce((sum, x) => sum + x.quantity, 0);
 }
 
 function threatTotal() {
@@ -98,13 +109,11 @@ function threatTotal() {
   }
 
   if (state.roster.backupMCV) {
-    const backup = byId(state.data.backupMCVs, state.roster.backupMCV);
-    total += backup?.threat || 0;
+    total += byId(state.data.backupMCVs, state.roster.backupMCV)?.threat || 0;
   }
 
   for (const id of state.roster.orbitalOrdnance) {
-    const o = byId(state.data.orbitalOrdnance, id);
-    total += o?.threat || 0;
+    total += byId(state.data.orbitalOrdnance, id)?.threat || 0;
   }
 
   for (const id of state.roster.mcv.primaryWeapons) {
@@ -123,28 +132,20 @@ function threatTotal() {
 }
 
 function mcvStats() {
-  const p = byId(state.data.mcvProfiles, state.roster.mcv.profile);
-  if (!p) return null;
+  const profile = byId(state.data.mcvProfiles, state.roster.mcv.profile);
+  if (!profile) return null;
 
-  let speed = p.speed;
-  let armor = p.armor;
+  let speed = profile.speed;
+  let armor = profile.armor;
   let defense = "—";
-  let tactics = "—";
-  let actions = p.baseActions || 2;
 
-  const exp = byId(state.data.pilotExperience, state.roster.mcv.pilotExperience);
-  if (exp) {
-    armor += exp.armorModifier || 0;
-    actions += exp.actionBonus || 0;
-  }
-
-  const pilotUnit = state.data.infantryUnits.find(x => x.experience === state.roster.mcv.pilotExperience);
-  if (pilotUnit) tactics = pilotUnit.tactics;
-
-  const comp = byId(state.data.mcvIntegratedComponents, state.roster.mcv.integratedComponent);
-  if (comp) {
-    speed += comp.speedModifier || 0;
-    armor += comp.armorModifier || 0;
+  const component = byId(
+    state.data.mcvIntegratedComponents,
+    state.roster.mcv.integratedComponent
+  );
+  if (component) {
+    speed += component.speedModifier || 0;
+    armor += component.armorModifier || 0;
   }
 
   const shield = byId(state.data.mcvShields, state.roster.mcv.shield);
@@ -162,7 +163,7 @@ function mcvStats() {
     }
   }
 
-  return { speed, armor, defense, tactics, actions };
+  return {speed, defense, armor};
 }
 
 function validateRoster() {
@@ -173,451 +174,766 @@ function validateRoster() {
 
   if (!state.roster.corporateClient) errors.push("Select one Corporate Client.");
   if (!state.roster.mcv.profile) errors.push("Choose an MCV profile.");
-  if (!state.roster.mcv.pilotExperience) errors.push("Choose Pilot Experience.");
   if (!state.roster.mcv.integratedComponent) errors.push("Choose one Integrated Component.");
   if (!state.roster.mcv.shield) errors.push("Choose one Shield.");
   if (!state.roster.mcv.sidearm) errors.push("Choose one Sidearm.");
 
-  const pilots = getPilotCount();
-  if (pilots < limits.pilotMin) errors.push(`Add at least ${limits.pilotMin} Pilot infantry.`);
-  if (pilots > limits.pilotMax) errors.push(`Pilot limit exceeded: ${pilots}/${limits.pilotMax}.`);
+  const pilots = infantryCount("pilot");
+  if (pilots < limits.pilotMin) errors.push(`Hire at least ${limits.pilotMin} Pilot infantry.`);
+  if (pilots > limits.pilotMax) errors.push(`Pilot infantry limit exceeded: ${pilots}/${limits.pilotMax}.`);
 
-  const infantry = getInfantryCount();
-  if (infantry > limits.infantryMax) errors.push(`Infantry limit exceeded: ${infantry}/${limits.infantryMax}.`);
+  const allInfantry = infantryCount();
+  if (allInfantry > limits.infantryMax) errors.push(`Infantry limit exceeded: ${allInfantry}/${limits.infantryMax}.`);
 
-  const specialists = getSpecialistCount();
-  if (specialists > limits.specialistMax) errors.push(`Specialist limit exceeded: ${specialists}/${limits.specialistMax}.`);
+  const specialists = infantryCount("specialist");
+  if (specialists > limits.specialistMax) {
+    errors.push(`Specialist limit exceeded: ${specialists}/${limits.specialistMax}.`);
+  }
 
-  const typeCounts = {};
+  const specialistTypeCounts = {};
   for (const entry of state.roster.infantry) {
     const unit = byId(state.data.infantryUnits, entry.unitId);
-    if (unit?.type === "specialist") typeCounts[entry.unitId] = (typeCounts[entry.unitId] || 0) + entry.quantity;
+    if (unit?.type !== "specialist") continue;
+    specialistTypeCounts[entry.unitId] = (specialistTypeCounts[entry.unitId] || 0) + entry.quantity;
   }
-  for (const [unitId, qty] of Object.entries(typeCounts)) {
+
+  for (const [unitId, qty] of Object.entries(specialistTypeCounts)) {
+    const unit = byId(state.data.infantryUnits, unitId);
     let max = limits.specialistTypeMax;
     if (state.roster.corporateClient === "nile") max = 3;
-    const unit = byId(state.data.infantryUnits, unitId);
     if (unit?.max) max = Math.min(max, unit.max);
     if (qty > max) errors.push(`${unit?.name || unitId} exceeds its limit: ${qty}/${max}.`);
   }
 
   if (state.roster.mcv.primaryWeapons.length > limits.primaryMax) {
-    errors.push(`Primary weapon limit exceeded: ${state.roster.mcv.primaryWeapons.length}/${limits.primaryMax}.`);
+    errors.push(`Primary Weapon limit exceeded: ${state.roster.mcv.primaryWeapons.length}/${limits.primaryMax}.`);
   }
 
-  const allEquipmentCount = state.roster.mcv.equipment.length;
-  if (allEquipmentCount > limits.equipmentMax) {
-    errors.push(`MCV Equipment limit exceeded: ${allEquipmentCount}/${limits.equipmentMax}.`);
+  if (state.roster.mcv.equipment.length > limits.equipmentMax) {
+    errors.push(`MCV Equipment limit exceeded: ${state.roster.mcv.equipment.length}/${limits.equipmentMax}.`);
   }
 
   if (state.roster.orbitalOrdnance.length > limits.ordnanceMax) {
     errors.push(`Orbital Ordnance limit exceeded: ${state.roster.orbitalOrdnance.length}/${limits.ordnanceMax}.`);
   }
 
-  const heavy = state.roster.infantry.find(x => x.unitId === "heavy-weapons-specialist");
-  if (heavy && !heavy.config?.weaponChoice) {
-    errors.push("Heavy Weapons Specialist requires Warthog or Rubicon HM Launcher.");
+  const heavyEntries = state.roster.infantry.filter(x => x.unitId === "heavy-weapons-specialist");
+  if (heavyEntries.some(x => !x.config?.weaponChoice)) {
+    errors.push("Each Heavy Weapons Specialist requires Warthog or Rubicon HM Launcher.");
   }
 
-  const vanguard = state.roster.infantry.find(x => x.unitId === "vanguard-specialist");
-  if (vanguard && !vanguard.config?.copiedSpecialist) {
-    warnings.push("Vanguard specialist profile copy/secondary ability is not configured in this first pass.");
+  if (state.roster.infantry.some(x => x.unitId === "vanguard-specialist")) {
+    warnings.push("Vanguard copied Specialist profile / secondary ability configuration is not implemented yet.");
   }
 
-  if (total > state.roster.threatLimit) errors.push(`${total - state.roster.threatLimit} Threat over the selected limit.`);
+  if (total > state.roster.threatLimit) {
+    errors.push(`${total - state.roster.threatLimit} Threat over the selected limit.`);
+  }
 
-  return { errors, warnings, total, legal: errors.length === 0 };
+  return {errors, warnings, legal: errors.length === 0, total};
 }
 
 function render() {
-  renderMeta();
-  renderCatalog();
-  renderSponsor();
-  renderMCV();
-  renderInfantry();
-  renderOrdnance();
-  renderBackup();
-  renderValidation();
+  renderHeader();
+  renderBuildContent();
+  renderSummary();
   renderGame();
 }
 
-function renderMeta() {
+function renderHeader() {
   $("#operationName").value = state.roster.name;
   $("#threatLimit").value = state.roster.threatLimit;
-  $("#rosterTitle").textContent = state.roster.name || "Untitled Operation";
   $("#gameTitle").textContent = state.roster.name || "Untitled Operation";
 
-  const v = validateRoster();
-  $("#threatStatus").textContent = `${v.total} / ${state.roster.threatLimit}`;
-  $("#remainingThreat").textContent =
-    v.total <= state.roster.threatLimit
-      ? `${state.roster.threatLimit - v.total} TH remaining`
-      : `${v.total - state.roster.threatLimit} TH over`;
+  const result = validateRoster();
+  $("#threatStatus").textContent = `${result.total} / ${state.roster.threatLimit}`;
 
   const badge = $("#legalStatus");
   badge.className = "status-pill";
-  if (v.legal) {
+  if (result.legal) {
     badge.textContent = "Legal";
     badge.classList.add("good");
-  } else if (v.errors.some(e => e.includes("over"))) {
+  } else if (result.total > state.roster.threatLimit) {
     badge.textContent = "Invalid";
     badge.classList.add("bad");
   } else {
     badge.textContent = "Incomplete";
     badge.classList.add("warn");
   }
-
-  const limits = effectiveLimits();
-  $("#infantryCounter").textContent = `${getInfantryCount()} / ${limits.infantryMax}`;
-  $("#ordnanceCounter").textContent = `${state.roster.orbitalOrdnance.length} / ${limits.ordnanceMax}`;
 }
 
-function renderValidation() {
-  const box = $("#validationBox");
-  const v = validateRoster();
+function renderBuildContent() {
+  const q = state.search.trim().toLowerCase();
+  if (state.activeTab === "mcv") renderMcvTab(q);
+  if (state.activeTab === "pilot") renderPilotTab(q);
+  if (state.activeTab === "infantry") renderInfantryTab(q);
+  if (state.activeTab === "clients") renderClientsTab(q);
+  if (state.activeTab === "ordnance") renderOrdnanceTab(q);
+}
 
-  if (v.legal && v.warnings.length === 0) {
-    box.innerHTML = `<div class="validation-summary good"><strong>✓ Legal Fireteam</strong><div class="subtle">No construction errors found.</div></div>`;
+function renderMcvTab(q) {
+  const root = $("#buildContent");
+  const m = state.roster.mcv;
+  const limits = effectiveLimits();
+  const stats = mcvStats();
+
+  const profiles = state.data.mcvProfiles.filter(x => matches(q, x.name));
+  const components = state.data.mcvIntegratedComponents.filter(x => matches(q, x.name, x.ability));
+  const shields = state.data.mcvShields.filter(x => matches(q, x.name));
+  const sidearms = state.data.mcvWeapons.filter(x => x.slot === "sidearm" && matches(q, x.name, ...(x.keywords || [])));
+  const primaries = state.data.mcvWeapons.filter(x => x.slot === "primary" && matches(q, x.name, ...(x.keywords || [])));
+
+  const chassisEquipment = state.data.mcvEquipment
+    .map(x => ({...x, selectionKind: "chassis"}))
+    .filter(x => matches(q, x.name, x.ability));
+
+  const weaponEquipment = state.data.mcvWeapons
+    .filter(x => x.slot === "equipment")
+    .map(x => ({...x, selectionKind: "weapon"}))
+    .filter(x => matches(q, x.name, ...(x.keywords || [])));
+
+  const equipment = [...chassisEquipment, ...weaponEquipment];
+  const backup = state.data.backupMCVs[0];
+
+  root.innerHTML = `
+    ${stats ? `
+      <section class="build-section">
+        <div class="build-section-title"><strong>Current MCV</strong><span>chassis + installed hardware</span></div>
+        <div class="stat-row stat-row-three">
+          ${statChip("Speed", stats.speed)}
+          ${statChip("Defense", stats.defense)}
+          ${statChip("Armor", stats.armor)}
+        </div>
+        <div class="subtle mcv-state-note">Pilot-derived Armor, Actions and Tactics are applied in Game Mode only while a Pilot is mounted.</div>
+      </section>
+    ` : ""}
+
+    ${mcvChoiceSection({
+      title: "MCV Profile",
+      subtitle: m.profile ? "1 / 1" : "0 / 1",
+      items: profiles,
+      selected: m.profile,
+      mode: "single",
+      action: "set-mcv-field",
+      field: "profile",
+      detail: x => [`Speed ${x.speed} · Armor ${x.armor}`]
+    })}
+
+    ${mcvChoiceSection({
+      title: "Integrated Component",
+      subtitle: m.integratedComponent ? "1 / 1" : "0 / 1",
+      items: components,
+      selected: m.integratedComponent,
+      mode: "single",
+      action: "set-mcv-field",
+      field: "integratedComponent",
+      detail: componentDetails
+    })}
+
+    ${mcvChoiceSection({
+      title: "Shield",
+      subtitle: m.shield ? "1 / 1" : "0 / 1",
+      items: shields,
+      selected: m.shield,
+      mode: "single",
+      action: "set-mcv-field",
+      field: "shield",
+      detail: shieldDetails
+    })}
+
+    ${mcvChoiceSection({
+      title: "Sidearm",
+      subtitle: m.sidearm ? "1 / 1" : "0 / 1",
+      items: sidearms,
+      selected: m.sidearm,
+      mode: "single",
+      action: "set-mcv-field",
+      field: "sidearm",
+      detail: weaponDetails,
+      cost: x => x.threat
+    })}
+
+    ${mcvChoiceSection({
+      title: "Primary Weapons",
+      subtitle: `${m.primaryWeapons.length} / ${limits.primaryMax}`,
+      items: primaries,
+      selected: m.primaryWeapons,
+      mode: "multi",
+      action: "toggle-primary",
+      detail: weaponDetails,
+      cost: x => x.threat
+    })}
+
+    ${mcvChoiceSection({
+      title: "Equipment",
+      subtitle: `${m.equipment.length} / ${limits.equipmentMax}`,
+      helper: "MCV weapon-equipment and chassis equipment share the same allowance.",
+      items: equipment,
+      selected: m.equipment,
+      mode: "multi",
+      action: "toggle-equipment",
+      detail: equipmentDetails,
+      cost: x => x.threat
+    })}
+
+    <section class="build-section">
+      <div class="build-section-title"><strong>Backup MCV</strong><span>optional</span></div>
+      ${mcvChoiceCard({
+        item: backup,
+        selected: state.roster.backupMCV === backup.id,
+        mode: "multi",
+        action: "toggle-backup",
+        detail: backupDetails(backup),
+        cost: backup.threat
+      })}
+    </section>
+  `;
+}
+
+function renderPilotTab(q) {
+  const root = $("#buildContent");
+  const pilots = state.data.infantryUnits
+    .filter(x => x.type === "pilot")
+    .filter(x => matches(q, x.name, ...(x.abilities || [])));
+
+  root.innerHTML = `
+    <section class="build-section">
+      <div class="build-section-title">
+        <strong>Pilot Infantry</strong>
+        <span>${infantryCount("pilot")} / ${effectiveLimits().pilotMax} selected · minimum ${effectiveLimits().pilotMin}</span>
+      </div>
+      <div class="subtle" style="margin-bottom:9px">
+        Hire 1–2 Pilot infantry. Their effects on an MCV are applied in Game Mode only while that Pilot is mounted.
+      </div>
+      <div class="build-list">
+        ${pilots.length ? pilots.map(unitBuildCard).join("") : searchEmpty()}
+      </div>
+    </section>
+  `;
+}
+
+function renderInfantryTab(q) {
+  const root = $("#buildContent");
+  const specialists = state.data.infantryUnits
+    .filter(x => x.type === "specialist")
+    .filter(x => matches(q, x.name, ...(x.abilities || [])));
+  const grunts = state.data.infantryUnits
+    .filter(x => x.type === "grunt")
+    .filter(x => matches(q, x.name, ...(x.abilities || [])));
+
+  root.innerHTML = `
+    <section class="build-section">
+      <div class="build-section-title">
+        <strong>Specialists</strong>
+        <span>${infantryCount("specialist")} / ${effectiveLimits().specialistMax}</span>
+      </div>
+      <div class="build-list">
+        ${specialists.length ? specialists.map(unitBuildCard).join("") : searchEmpty()}
+      </div>
+    </section>
+
+    <section class="build-section">
+      <div class="build-section-title">
+        <strong>Grunts</strong>
+        <span>${infantryCount("grunt")} selected</span>
+      </div>
+      <div class="build-list">
+        ${grunts.length ? grunts.map(unitBuildCard).join("") : searchEmpty()}
+      </div>
+    </section>
+
+    <section class="build-section">
+      <div class="build-section-title">
+        <strong>Total Infantry</strong>
+        <span>${infantryCount()} / ${effectiveLimits().infantryMax}</span>
+      </div>
+    </section>
+  `;
+}
+
+function renderClientsTab(q) {
+  const root = $("#buildContent");
+  const clients = state.data.corporateClients.filter(x => matches(q, x.name, x.perk));
+
+  root.innerHTML = `
+    <section class="build-section">
+      <div class="build-section-title">
+        <strong>Corporate Clients</strong>
+        <span>select exactly 1</span>
+      </div>
+      <div class="build-list">
+        ${clients.length ? clients.map(client => `
+          <article class="asset-card client-card ${state.roster.corporateClient === client.id ? "selected" : ""}">
+            <div class="asset-card-head">
+              <div class="asset-card-main">
+                <div class="asset-name-line">
+                  <span class="asset-name">${escapeHtml(client.name)}</span>
+                </div>
+                <p class="perk">${escapeHtml(client.perk)}</p>
+              </div>
+              <button class="select-button ${state.roster.corporateClient === client.id ? "active" : ""}"
+                data-action="select-client" data-id="${client.id}" type="button">
+                ${state.roster.corporateClient === client.id ? "Selected" : "Select"}
+              </button>
+            </div>
+          </article>
+        `).join("") : searchEmpty()}
+      </div>
+    </section>
+  `;
+}
+
+function renderOrdnanceTab(q) {
+  const root = $("#buildContent");
+  const ordnance = state.data.orbitalOrdnance.filter(x => matches(q, x.name, x.effect));
+  const max = effectiveLimits().ordnanceMax;
+
+  root.innerHTML = `
+    <section class="build-section">
+      <div class="build-section-title">
+        <strong>Orbital Ordnance</strong>
+        <span>${state.roster.orbitalOrdnance.length} / ${max}</span>
+      </div>
+      <div class="build-list">
+        ${ordnance.length ? ordnance.map(o => {
+          const selected = state.roster.orbitalOrdnance.includes(o.id);
+          return `
+            <article class="asset-card ${selected ? "selected" : ""}">
+              <div class="asset-card-head">
+                <div class="asset-card-main">
+                  <div class="asset-name-line">
+                    <span class="asset-name">${escapeHtml(o.name)}</span>
+                    <span class="threat-cost">${o.threat}</span>
+                  </div>
+                  <div class="asset-meta">${escapeHtml(o.effect)}</div>
+                </div>
+                <button class="select-button ${selected ? "active" : ""}"
+                  data-action="toggle-ordnance" data-id="${o.id}" type="button">
+                  ${selected ? "Selected" : "Add"}
+                </button>
+              </div>
+            </article>
+          `;
+        }).join("") : searchEmpty()}
+      </div>
+    </section>
+  `;
+}
+
+function unitBuildCard(unit) {
+  const matchingEntries = state.roster.infantry.filter(x => x.unitId === unit.id);
+  const qty = quantityFor(unit.id);
+  const selected = qty > 0;
+  const weapons = [];
+  if (unit.weapons) {
+    weapons.push(...unit.weapons.map(id => byId(state.data.infantryWeapons, id)?.name || id));
+  }
+  if (unit.weaponChoice) weapons.push("weapon choice");
+
+  let options = "";
+  if (unit.id === "heavy-weapons-specialist" && matchingEntries.length) {
+    options = matchingEntries.map((entry, index) => `
+      <div class="config-block" style="margin-top:8px">
+        <div class="config-head">
+          <strong>Heavy Weapons Specialist ${matchingEntries.length > 1 ? index + 1 : ""}</strong>
+          <span class="slot-count">choose 1</span>
+        </div>
+        <select data-action="heavy-weapon-choice" data-entry="${entry.entryId}" style="margin-top:7px">
+          <option value="">Choose weapon…</option>
+          ${unit.weaponChoice.options.map(id => {
+            const w = byId(state.data.infantryWeapons, id);
+            return `<option value="${id}" ${entry.config?.weaponChoice === id ? "selected" : ""}>${escapeHtml(w?.name || id)}</option>`;
+          }).join("")}
+        </select>
+      </div>
+    `).join("");
+  }
+
+  return `
+    <article class="asset-card ${selected ? "selected" : ""} ${selected && unit.weaponChoice && matchingEntries.some(x => !x.config?.weaponChoice) ? "attention" : ""}">
+      <div class="asset-card-head">
+        <div class="asset-card-main">
+          <div class="asset-name-line">
+            <span class="asset-name">${escapeHtml(unit.name)}</span>
+            <span class="threat-cost">${unit.threat}</span>
+          </div>
+          <div class="asset-meta">SPD ${unit.speed} · DEF ${unit.defense} · ARM ${unit.armor} · TAC ${unit.tactics}</div>
+          <div class="asset-meta">${escapeHtml(weapons.join(" · "))}</div>
+          ${unit.abilities?.length ? `<div class="asset-meta">${escapeHtml(unit.abilities[0])}</div>` : ""}
+        </div>
+        ${!selected ? `
+          <button class="select-button" data-action="add-unit" data-id="${unit.id}" type="button">Add</button>
+        ` : ""}
+      </div>
+
+      ${selected ? `
+        <div class="quantity-controls">
+          <span class="subtle" style="margin:0">In Fireteam</span>
+          <button class="quantity-button" data-action="remove-one-unit" data-id="${unit.id}" type="button">−</button>
+          <span class="quantity-value">${qty}</span>
+          <button class="quantity-button" data-action="add-unit" data-id="${unit.id}" type="button">+</button>
+          <button class="remove-button" data-action="remove-all-unit" data-id="${unit.id}" type="button" title="Remove all">×</button>
+        </div>
+        ${options}
+      ` : ""}
+    </article>
+  `;
+}
+
+function modifierText(item) {
+  const parts = [];
+  if (item.speedModifier) parts.push(`Speed ${item.speedModifier > 0 ? "+" : ""}${item.speedModifier}`);
+  if (item.armorModifier) parts.push(`Armor ${item.armorModifier > 0 ? "+" : ""}${item.armorModifier}`);
+  return parts.join(" · ");
+}
+
+function componentDetails(item) {
+  return [modifierText(item), item.ability].filter(Boolean);
+}
+
+function shieldDetails(item) {
+  return [`Defense ${item.defense}`, modifierText(item)].filter(Boolean);
+}
+
+function weaponDetails(item) {
+  const stats = [];
+  if (item.range != null) stats.push(`Range ${item.range}\"`);
+  if (item.aoe != null) stats.push(`AoE ${item.aoe}\"`);
+  if (item.targetNumber != null) stats.push(`TN ${item.targetNumber}+`);
+  if (item.damage != null) stats.push(`Damage ${item.damage}`);
+  if (item.ammo != null) stats.push(`Ammo ${item.ammo}`);
+  return [stats.join(" · "), (item.keywords || []).join(" · ")].filter(Boolean);
+}
+
+function equipmentDetails(item) {
+  if (item.selectionKind === "weapon" || item.slot === "equipment") return weaponDetails(item);
+  return [modifierText(item), item.ability].filter(Boolean);
+}
+
+function backupDetails(item) {
+  const weapons = (item.weapons || []).map(id => byId(state.data.mcvWeapons, id)?.name || id);
+  const equipment = (item.equipment || []).map(id => byId(state.data.mcvEquipment, id)?.name || byId(state.data.mcvWeapons, id)?.name || id);
+  return [
+    `Speed ${item.speed} · Defense ${item.defense} · Armor ${item.armor}`,
+    weapons.length ? `Weapons: ${weapons.join(" · ")}` : "",
+    equipment.length ? `Equipment: ${equipment.join(" · ")}` : "",
+    "Reduces total Infantry max to 8 and Specialist max to 3."
+  ].filter(Boolean);
+}
+
+function mcvChoiceSection({title, subtitle, helper = "", items, selected, mode, action, field = "", detail, cost}) {
+  return `
+    <section class="build-section">
+      <div class="build-section-title"><strong>${escapeHtml(title)}</strong><span>${escapeHtml(subtitle)}</span></div>
+      ${helper ? `<div class="subtle section-helper">${escapeHtml(helper)}</div>` : ""}
+      <div class="mcv-choice-list">
+        ${items.length ? items.map(item => {
+          const on = mode === "single" ? selected === item.id : selected.includes(item.id);
+          return mcvChoiceCard({
+            item,
+            selected: on,
+            mode,
+            action,
+            field,
+            detail: detail(item),
+            cost: cost ? cost(item) : null
+          });
+        }).join("") : searchEmpty()}
+      </div>
+    </section>
+  `;
+}
+
+function mcvChoiceCard({item, selected, mode, action, field = "", detail = [], cost = null}) {
+  const additive = mode === "multi";
+  const buttonText = additive ? (selected ? "✓" : "+") : (selected ? "Selected ✓" : "Select");
+  const buttonLabel = additive
+    ? `${selected ? "Remove" : "Add"} ${item.name}`
+    : `${selected ? "Selected" : "Select"} ${item.name}`;
+
+  return `
+    <article class="mcv-choice-card ${selected ? "selected" : ""}">
+      <div class="mcv-choice-copy">
+        <div class="mcv-choice-title">${escapeHtml(item.name)}</div>
+        ${detail.map((line, index) => `<div class="mcv-choice-detail ${index === 0 ? "primary-detail" : ""}">${escapeHtml(line)}</div>`).join("")}
+      </div>
+      <div class="mcv-choice-side">
+        ${cost != null ? `<span class="entry-cost">${escapeHtml(cost)}</span>` : ""}
+        <button class="choice-action ${additive ? "compact" : ""} ${selected ? "active" : ""}"
+          data-action="${action}" ${field ? `data-field="${field}"` : ""} data-id="${item.id}" type="button" aria-label="${escapeHtml(buttonLabel)}">
+          ${buttonText}
+        </button>
+      </div>
+    </article>
+  `;
+}
+
+function renderSummary() {
+  const result = validateRoster();
+  const limits = effectiveLimits();
+  const client = byId(state.data.corporateClients, state.roster.corporateClient);
+
+  $("#summaryContractName").textContent = state.roster.name || "Untitled Operation";
+  const clientEl = $("#summaryClientName");
+  clientEl.textContent = client?.name || "Not Selected";
+  clientEl.classList.toggle("placeholder", !client);
+
+  $("#summaryThreat").textContent = `${result.total} / ${state.roster.threatLimit} Threat`;
+  $("#summaryRemaining").textContent =
+    result.total <= state.roster.threatLimit
+      ? `${state.roster.threatLimit - result.total} remaining`
+      : `${result.total - state.roster.threatLimit} over limit`;
+
+  renderValidation(result);
+
+  const sections = [];
+  sections.push(summaryMcvSection());
+
+  const pilots = state.roster.infantry.filter(
+    x => byId(state.data.infantryUnits, x.unitId)?.type === "pilot"
+  );
+  sections.push(summaryUnitsSection("Pilots", pilots, `${infantryCount("pilot")} / ${limits.pilotMax}`));
+
+  const otherInfantry = state.roster.infantry.filter(
+    x => byId(state.data.infantryUnits, x.unitId)?.type !== "pilot"
+  );
+  sections.push(summaryUnitsSection("Infantry", otherInfantry, `${infantryCount()} / ${limits.infantryMax} total`));
+
+  sections.push(summaryOrdnanceSection());
+
+  if (state.roster.backupMCV) {
+    const b = byId(state.data.backupMCVs, state.roster.backupMCV);
+    sections.push(`
+      <section class="summary-section">
+        <div class="summary-section-head"><h3>Backup MCV</h3><span>${b?.threat || 0}</span></div>
+        <div class="summary-primary">${escapeHtml(b?.name || state.roster.backupMCV)}</div>
+        <div class="summary-unit-detail">SPD ${b?.speed ?? "—"} · DEF ${b?.defense ?? "—"} · ARM ${b?.armor ?? "—"}</div>
+      </section>
+    `);
+  }
+
+  $("#summaryContent").innerHTML = sections.join("");
+}
+
+function summaryMcvSection() {
+  const m = state.roster.mcv;
+  const profile = byId(state.data.mcvProfiles, m.profile);
+  const component = byId(state.data.mcvIntegratedComponents, m.integratedComponent);
+  const shield = byId(state.data.mcvShields, m.shield);
+  const sidearm = byId(state.data.mcvWeapons, m.sidearm);
+  const stats = mcvStats();
+
+  return `
+    <section class="summary-section">
+      <div class="summary-section-head"><h3>MCV</h3><span>${profile ? "configured live" : "not selected"}</span></div>
+      ${profile ? `
+        <div class="summary-primary">${escapeHtml(profile.name)} MCV</div>
+        ${stats ? `<div class="summary-unit-detail">SPD ${stats.speed} · DEF ${stats.defense} · ARM ${stats.armor}</div>` : ""}
+        ${summaryLine("Integrated Component", component?.name || "Not Selected")}
+        ${summaryLine("Shield", shield?.name || "Not Selected")}
+        ${summaryLine("Sidearm", sidearm ? `${sidearm.name} · ${sidearm.threat}` : "Not Selected")}
+        ${summaryLine("Primary Weapons", m.primaryWeapons.length
+          ? m.primaryWeapons.map(id => {
+              const w = byId(state.data.mcvWeapons, id);
+              return `${w?.name || id} (${w?.threat || 0})`;
+            }).join(", ")
+          : "None")}
+        ${summaryLine("Equipment", m.equipment.length
+          ? m.equipment.map(id => {
+              const eq = byId(state.data.mcvEquipment, id) || byId(state.data.mcvWeapons, id);
+              return `${eq?.name || id}${eq?.threat != null ? ` (${eq.threat})` : ""}`;
+            }).join(", ")
+          : "None")}
+      ` : `<div class="empty-state">No MCV profile selected yet.</div>`}
+    </section>
+  `;
+}
+
+function summaryUnitsSection(title, entries, counter) {
+  return `
+    <section class="summary-section">
+      <div class="summary-section-head"><h3>${escapeHtml(title)}</h3><span>${escapeHtml(counter)}</span></div>
+      ${entries.length ? entries.map(entry => {
+        const unit = byId(state.data.infantryUnits, entry.unitId);
+        const per = unit?.threat || 0;
+        const weaponChoice = entry.config?.weaponChoice
+          ? byId(state.data.infantryWeapons, entry.config.weaponChoice)?.name
+          : null;
+        return `
+          <div class="summary-unit">
+            <div class="summary-unit-head">
+              <strong>${entry.quantity > 1 ? `${entry.quantity}× ` : ""}${escapeHtml(unit?.name || entry.unitId)}</strong>
+              <span class="threat-cost">${per * entry.quantity}</span>
+            </div>
+            <div class="summary-unit-detail">
+              ${weaponChoice ? `Weapon: ${escapeHtml(weaponChoice)}` : `SPD ${unit?.speed ?? "—"} · DEF ${unit?.defense ?? "—"} · ARM ${unit?.armor ?? "—"} · TAC ${unit?.tactics ?? "—"}`}
+            </div>
+          </div>
+        `;
+      }).join("") : `<div class="empty-state">None selected.</div>`}
+    </section>
+  `;
+}
+
+function summaryOrdnanceSection() {
+  return `
+    <section class="summary-section">
+      <div class="summary-section-head">
+        <h3>Orbital Ordnance</h3>
+        <span>${state.roster.orbitalOrdnance.length} / ${effectiveLimits().ordnanceMax}</span>
+      </div>
+      ${state.roster.orbitalOrdnance.length ? state.roster.orbitalOrdnance.map(id => {
+        const o = byId(state.data.orbitalOrdnance, id);
+        return `
+          <div class="summary-unit">
+            <div class="summary-unit-head">
+              <strong>${escapeHtml(o?.name || id)}</strong>
+              <span class="threat-cost">${o?.threat || 0}</span>
+            </div>
+          </div>
+        `;
+      }).join("") : `<div class="empty-state">None selected.</div>`}
+    </section>
+  `;
+}
+
+function renderValidation(result) {
+  const root = $("#validationBox");
+
+  if (result.legal && result.warnings.length === 0) {
+    root.innerHTML = `<div class="validation-summary good"><strong>✓ Legal Fireteam</strong><div class="subtle">No construction errors found.</div></div>`;
     return;
   }
 
-  const items = [...v.errors.map(x => `⚠ ${x}`), ...v.warnings.map(x => `• ${x}`)];
-  const cls = v.errors.length ? "bad" : "";
-  box.innerHTML = `
-    <div class="validation-summary ${cls}">
-      <strong>${v.errors.length ? "Fireteam needs attention" : "Review notes"}</strong>
+  const items = [
+    ...result.errors.map(x => `⚠ ${x}`),
+    ...result.warnings.map(x => `• ${x}`)
+  ];
+  root.innerHTML = `
+    <div class="validation-summary ${result.errors.length ? "bad" : ""}">
+      <strong>${result.errors.length ? "Fireteam needs attention" : "Review notes"}</strong>
       <ul>${items.map(x => `<li>${escapeHtml(x)}</li>`).join("")}</ul>
     </div>
   `;
 }
 
-function renderCatalog() {
-  const root = $("#catalogContent");
-  const q = state.search.trim().toLowerCase();
+function pilotGameInstances() {
+  const pilots = [];
+  for (const entry of state.roster.infantry) {
+    const unit = byId(state.data.infantryUnits, entry.unitId);
+    if (unit?.type !== "pilot") continue;
+    for (let i = 0; i < entry.quantity; i++) {
+      pilots.push({
+        key: `${entry.entryId}-${i}`,
+        unit,
+        name: entry.quantity > 1 ? `${unit.name} ${i + 1}` : unit.name
+      });
+    }
+  }
+  return pilots;
+}
 
-  if (state.catalogTab === "infantry") {
-    const groups = [
-      ["Pilots", state.data.infantryUnits.filter(x => x.type === "pilot")],
-      ["Specialists", state.data.infantryUnits.filter(x => x.type === "specialist")],
-      ["Grunts", state.data.infantryUnits.filter(x => x.type === "grunt")]
-    ];
+function mountedPilot() {
+  const key = state.gameState["main-mcv"]?.mountedPilotKey;
+  return pilotGameInstances().find(x => x.key === key) || null;
+}
 
-    root.innerHTML = groups.map(([title, list]) => {
-      const filtered = list.filter(u => !q || `${u.name} ${u.type} ${(u.abilities || []).join(" ")}`.toLowerCase().includes(q));
-      if (!filtered.length) return "";
-      return `
-        <section class="catalog-group">
-          <div class="catalog-group-title"><strong>${title}</strong><span>${filtered.length}</span></div>
-          <div class="catalog-list">
-            ${filtered.map(unitCard).join("")}
-          </div>
-        </section>
-      `;
-    }).join("");
+function mcvGameStats() {
+  const base = mcvStats();
+  if (!base) return null;
+
+  const mounted = mountedPilot();
+  if (!mounted) {
+    return {...base, tactics: "—", actions: "—"};
   }
 
-  if (state.catalogTab === "mcv") {
-    const profiles = state.data.mcvProfiles.filter(x => !q || x.name.toLowerCase().includes(q));
-    root.innerHTML = `
-      <section class="catalog-group">
-        <div class="catalog-group-title"><strong>MCV Profiles</strong><span>${profiles.length}</span></div>
-        <div class="catalog-list">
-          ${profiles.map(p => `
-            <div class="catalog-card">
-              <div class="catalog-main">
-                <div class="catalog-title-line"><span class="catalog-title">${escapeHtml(p.name)}</span></div>
-                <div class="catalog-meta">SPD ${p.speed} · ARM ${p.armor}</div>
-              </div>
-              <button class="add-btn" data-action="choose-profile" data-id="${p.id}" type="button" title="Use ${escapeHtml(p.name)}">+</button>
-            </div>
-          `).join("")}
-        </div>
-      </section>
-    `;
-  }
-
-  if (state.catalogTab === "ordnance") {
-    const list = state.data.orbitalOrdnance.filter(x => !q || `${x.name} ${x.effect}`.toLowerCase().includes(q));
-    root.innerHTML = `
-      <section class="catalog-group">
-        <div class="catalog-group-title"><strong>Orbital Ordnance</strong><span>${list.length}</span></div>
-        <div class="catalog-list">
-          ${list.map(o => `
-            <div class="catalog-card">
-              <div class="catalog-main">
-                <div class="catalog-title-line">
-                  <span class="catalog-title">${escapeHtml(o.name)}</span>
-                  <span class="threat-cost">${o.threat} TH</span>
-                </div>
-                <div class="catalog-meta">${escapeHtml(o.effect)}</div>
-              </div>
-              <button class="add-btn" data-action="add-ordnance" data-id="${o.id}" type="button">+</button>
-            </div>
-          `).join("")}
-        </div>
-      </section>
-    `;
-  }
-}
-
-function unitCard(unit) {
-  const weapons = [];
-  if (unit.weapons) weapons.push(...unit.weapons.map(id => byId(state.data.infantryWeapons, id)?.name || id));
-  if (unit.weaponChoice) weapons.push("Weapon choice required");
-
-  return `
-    <div class="catalog-card">
-      <div class="catalog-main">
-        <div class="catalog-title-line">
-          <span class="catalog-title">${escapeHtml(unit.name)}</span>
-          <span class="threat-cost">${unit.threat} TH</span>
-        </div>
-        <div class="catalog-meta">SPD ${unit.speed} · DEF ${unit.defense} · ARM ${unit.armor} · TAC ${unit.tactics}</div>
-        <div class="catalog-meta">${escapeHtml(weapons.join(" · "))}</div>
-      </div>
-      <button class="add-btn" data-action="add-infantry" data-id="${unit.id}" type="button">+</button>
-    </div>
-  `;
-}
-
-function renderSponsor() {
-  const root = $("#sponsorSelection");
-  root.innerHTML = `
-    <div class="choice-grid">
-      ${state.data.corporateClients.map(c => `
-        <button class="choice-button ${state.roster.corporateClient === c.id ? "selected" : ""}"
-          data-action="select-sponsor" data-id="${c.id}" type="button"
-          title="${escapeAttr(c.perk)}">
-          ${state.roster.corporateClient === c.id ? '<span class="check">✓</span>' : ""}
-          ${escapeHtml(c.name)}
-        </button>
-      `).join("")}
-    </div>
-    ${state.roster.corporateClient ? `<div class="subtle" style="margin-top:8px">${escapeHtml(byId(state.data.corporateClients, state.roster.corporateClient)?.perk || "")}</div>` : ""}
-  `;
-}
-
-function renderMCV() {
-  const root = $("#mcvBuilder");
-  const m = state.roster.mcv;
-  const limits = effectiveLimits();
-  const stats = mcvStats();
-
-  const primary = state.data.mcvWeapons.filter(x => x.slot === "primary");
-  const sidearms = state.data.mcvWeapons.filter(x => x.slot === "sidearm");
-  const weaponEquipment = state.data.mcvWeapons.filter(x => x.slot === "equipment");
-  const equipmentOptions = [
-    ...state.data.mcvEquipment.map(x => ({...x, sourceCollection: "mcvEquipment"})),
-    ...weaponEquipment.map(x => ({...x, sourceCollection: "mcvWeapons"}))
-  ];
-
-  root.innerHTML = `
-    <div class="mcv-block">
-      ${stats ? `
-        <div class="mcv-summary">
-          <div class="stat-chip"><span>Speed</span><strong>${stats.speed}</strong></div>
-          <div class="stat-chip"><span>Defense</span><strong>${stats.defense}</strong></div>
-          <div class="stat-chip"><span>Armor</span><strong>${stats.armor}</strong></div>
-          <div class="stat-chip"><span>Actions</span><strong>${stats.actions}</strong></div>
-        </div>
-      ` : ""}
-
-      ${selectionRow("Profile", state.data.mcvProfiles, m.profile, "select-mcv-single", "profile",
-        x => `${x.name} · SPD ${x.speed} / ARM ${x.armor}`)}
-
-      ${selectionRow("Pilot Experience", state.data.pilotExperience, m.pilotExperience, "select-mcv-single", "pilotExperience",
-        x => `${x.name} · +${x.actionBonus} action${x.actionBonus === 1 ? "" : "s"}`)}
-
-      ${selectionRow("Integrated Component", state.data.mcvIntegratedComponents, m.integratedComponent, "select-mcv-single", "integratedComponent",
-        x => x.name)}
-
-      ${selectionRow("Shield", state.data.mcvShields, m.shield, "select-mcv-single", "shield",
-        x => `${x.name} · DEF ${x.defense}`)}
-
-      ${selectionRow("Sidearm", sidearms, m.sidearm, "select-mcv-single", "sidearm",
-        x => `${x.name} · ${x.threat} TH`)}
-
-      ${multiSelectionRow("Primary Weapons", primary, m.primaryWeapons, limits.primaryMax, "toggle-primary",
-        x => `${x.name} · ${x.threat} TH`)}
-
-      ${multiSelectionRow("Equipment", equipmentOptions, m.equipment, limits.equipmentMax, "toggle-equipment",
-        x => `${x.name}${x.threat != null ? ` · ${x.threat} TH` : ""}`)}
-    </div>
-  `;
-}
-
-function selectionRow(label, options, selected, action, field, formatter) {
-  return `
-    <div class="mcv-row">
-      <div class="mcv-row-head">
-        <strong>${label}</strong>
-        <span class="slot-count">${selected ? "1 / 1" : "0 / 1"}</span>
-      </div>
-      <div class="choice-grid">
-        ${options.map(x => `
-          <button class="choice-button ${selected === x.id ? "selected" : ""}"
-            data-action="${action}" data-field="${field}" data-id="${x.id}" type="button">
-            ${selected === x.id ? '<span class="check">✓</span>' : ""}
-            ${escapeHtml(formatter(x))}
-          </button>
-        `).join("")}
-      </div>
-    </div>
-  `;
-}
-
-function multiSelectionRow(label, options, selected, max, action, formatter) {
-  return `
-    <div class="mcv-row">
-      <div class="mcv-row-head">
-        <strong>${label}</strong>
-        <span class="slot-count">${selected.length} / ${max}</span>
-      </div>
-      <div class="choice-grid">
-        ${options.map(x => {
-          const on = selected.includes(x.id);
-          return `
-            <button class="choice-button ${on ? "selected" : ""}"
-              data-action="${action}" data-id="${x.id}" type="button">
-              ${on ? '<span class="check">✓</span>' : ""}
-              ${escapeHtml(formatter(x))}
-            </button>
-          `;
-        }).join("")}
-      </div>
-    </div>
-  `;
-}
-
-function renderInfantry() {
-  const root = $("#rosterInfantry");
-  if (!state.roster.infantry.length) {
-    root.innerHTML = `<div class="empty-state">No infantry hired yet. Add Pilots, Specialists, or Grunts from the catalog.</div>`;
-    return;
-  }
-
-  root.innerHTML = `<div class="roster-list">${
-    state.roster.infantry.map((entry, index) => {
-      const unit = byId(state.data.infantryUnits, entry.unitId);
-      let config = "";
-      if (unit?.weaponChoice) {
-        config = `
-          <div class="subtle">
-            Weapon:
-            <select data-action="heavy-weapon-choice" data-entry="${entry.entryId}">
-              <option value="">Choose…</option>
-              ${unit.weaponChoice.options.map(id => {
-                const w = byId(state.data.infantryWeapons, id);
-                return `<option value="${id}" ${entry.config?.weaponChoice === id ? "selected" : ""}>${escapeHtml(w?.name || id)}</option>`;
-              }).join("")}
-            </select>
-          </div>
-        `;
-      }
-
-      return `
-        <div class="roster-item" draggable="true" data-entry="${entry.entryId}">
-          <span class="drag-handle" title="Drag to reorder">☰</span>
-          <div>
-            <div class="roster-item-title">${escapeHtml(unit?.name || entry.unitId)} <span class="threat-cost">${unit?.threat || 0} TH ea.</span></div>
-            <div class="subtle">${escapeHtml(unit?.type || "")} · SPD ${unit?.speed ?? "—"} · DEF ${unit?.defense ?? "—"} · ARM ${unit?.armor ?? "—"} · TAC ${unit?.tactics ?? "—"}</div>
-            ${config}
-          </div>
-          <div class="roster-item-controls">
-            <button class="small-button" data-action="decrement-infantry" data-entry="${entry.entryId}" type="button">−</button>
-            <span class="quantity">${entry.quantity}</span>
-            <button class="small-button" data-action="increment-infantry" data-entry="${entry.entryId}" type="button">+</button>
-            <button class="small-button danger" data-action="remove-infantry" data-entry="${entry.entryId}" type="button">×</button>
-          </div>
-        </div>
-      `;
-    }).join("")
-  }</div>`;
-}
-
-function renderOrdnance() {
-  const root = $("#rosterOrdnance");
-  if (!state.roster.orbitalOrdnance.length) {
-    root.innerHTML = `<div class="empty-state">No Orbital Ordnance selected.</div>`;
-    return;
-  }
-  root.innerHTML = `<div class="roster-list">${
-    state.roster.orbitalOrdnance.map(id => {
-      const o = byId(state.data.orbitalOrdnance, id);
-      return `
-        <div class="roster-item">
-          <span class="drag-handle">↳</span>
-          <div>
-            <div class="roster-item-title">${escapeHtml(o?.name || id)} <span class="threat-cost">${o?.threat || 0} TH</span></div>
-            <div class="subtle">${escapeHtml(o?.effect || "")}</div>
-          </div>
-          <div class="roster-item-controls">
-            <button class="small-button danger" data-action="remove-ordnance" data-id="${id}" type="button">×</button>
-          </div>
-        </div>
-      `;
-    }).join("")
-  }</div>`;
-}
-
-function renderBackup() {
-  const root = $("#backupMcv");
-  const b = state.data.backupMCVs[0];
-  const active = state.roster.backupMCV === b.id;
-  root.innerHTML = `
-    <div class="backup-card">
-      <div>
-        <div class="roster-item-title">${escapeHtml(b.name)} <span class="threat-cost">${b.threat} TH</span></div>
-        <div class="subtle">Backup MCV · reduces Infantry max to 8 and Specialist max to 3.</div>
-      </div>
-      <button class="button ${active ? "primary" : "secondary"}" data-action="toggle-backup" data-id="${b.id}" type="button">
-        ${active ? "Selected ✓" : "Add Backup"}
-      </button>
-    </div>
-  `;
+  const effect = byId(state.data.pilotExperience, mounted.unit.experience);
+  return {
+    ...base,
+    armor: base.armor + (effect?.armorModifier || 0),
+    tactics: mounted.unit.tactics,
+    actions: (byId(state.data.mcvProfiles, state.roster.mcv.profile)?.baseActions || 2) + (effect?.actionBonus || 0)
+  };
 }
 
 function renderGame() {
   const root = $("#gameCards");
   const cards = [];
+  const profile = byId(state.data.mcvProfiles, state.roster.mcv.profile);
+  const stats = mcvGameStats();
+  const pilots = pilotGameInstances();
+  const mounted = mountedPilot();
 
-  const mcv = mcvStats();
-  if (mcv && state.roster.mcv.profile) {
-    const p = byId(state.data.mcvProfiles, state.roster.mcv.profile);
-    cards.push(gameCard({
-      key: "main-mcv",
-      name: `${p.name} MCV`,
-      type: "MCV",
-      stats: { SPD: mcv.speed, DEF: mcv.defense, ARM: mcv.armor, TAC: mcv.tactics },
-      details: [
-        byId(state.data.pilotExperience, state.roster.mcv.pilotExperience)?.name,
-        ...state.roster.mcv.primaryWeapons.map(id => byId(state.data.mcvWeapons, id)?.name),
-        ...state.roster.mcv.equipment.map(id => byId(state.data.mcvEquipment, id)?.name || byId(state.data.mcvWeapons, id)?.name)
-      ].filter(Boolean)
-    }));
+  if (profile && stats) {
+    cards.push(mcvGameCard({profile, stats, pilots, mounted}));
   }
 
   for (const entry of state.roster.infantry) {
     const unit = byId(state.data.infantryUnits, entry.unitId);
+    if (!unit) continue;
     for (let i = 0; i < entry.quantity; i++) {
+      const key = `${entry.entryId}-${i}`;
+      const isMounted = mounted?.key === key;
       cards.push(gameCard({
-        key: `${entry.entryId}-${i}`,
+        key,
         name: entry.quantity > 1 ? `${unit.name} ${i + 1}` : unit.name,
-        type: unit.type,
-        stats: { SPD: unit.speed, DEF: unit.defense, ARM: unit.armor, TAC: unit.tactics },
+        type: isMounted ? `${unit.type} · Mounted in MCV` : unit.type,
+        stats: {SPD: unit.speed, DEF: unit.defense, ARM: unit.armor, TAC: unit.tactics},
         details: [
           ...(unit.weapons || []).map(id => byId(state.data.infantryWeapons, id)?.name),
-          ...(unit.abilities || []).slice(0, 2)
+          entry.config?.weaponChoice
+            ? byId(state.data.infantryWeapons, entry.config.weaponChoice)?.name
+            : null,
+          ...(unit.abilities || []).slice(0, 1)
         ].filter(Boolean)
       }));
     }
   }
 
-  root.innerHTML = cards.length ? cards.join("") : `<div class="empty-state">Configure your Fireteam in Build mode to populate Game mode.</div>`;
+  root.innerHTML = cards.length
+    ? cards.join("")
+    : `<div class="empty-state">Build your Fireteam first to populate Game mode.</div>`;
+}
+
+function mcvGameCard({profile, stats, pilots, mounted}) {
+  const key = "main-mcv";
+  const gs = state.gameState[key] || {status: "ready", mountedPilotKey: null};
+  return `
+    <article class="game-card ${gs.status === "downed" ? "down" : ""} ${gs.status === "kia" ? "kia" : ""} ${gs.status === "activated" ? "activated" : ""}">
+      <div class="game-card-head">
+        <div>
+          <strong>${escapeHtml(profile.name)} MCV</strong>
+          <div class="subtle">${mounted ? `Mounted: ${escapeHtml(mounted.name)}` : "Null / no Pilot mounted"}</div>
+        </div>
+        <span class="status-pill">${escapeHtml(gs.status)}</span>
+      </div>
+      <div class="game-stats">
+        ${statChip("SPD", stats.speed)}
+        ${statChip("DEF", stats.defense)}
+        ${statChip("ARM", stats.armor)}
+        ${statChip("TAC", stats.tactics)}
+        ${statChip("ACT", stats.actions)}
+      </div>
+      <label class="game-mount-control">
+        <span>Mounted Pilot</span>
+        <select data-action="mount-pilot">
+          <option value="">Null / none</option>
+          ${pilots.map(p => `<option value="${p.key}" ${mounted?.key === p.key ? "selected" : ""}>${escapeHtml(p.name)}</option>`).join("")}
+        </select>
+      </label>
+      <div class="subtle game-mcv-note">Pilot-derived MCV effects update here when a Pilot mounts or dismounts.</div>
+      <div class="game-controls" style="margin-top:10px">
+        ${["ready","activated","downed","kia"].map(status => `
+          <button class="${gs.status === status ? "active" : ""}"
+            data-action="game-status" data-key="${key}" data-status="${status}" type="button">${status}</button>
+        `).join("")}
+      </div>
+    </article>
+  `;
 }
 
 function gameCard({key, name, type, stats, details}) {
-  const gs = state.gameState[key] || { status: "ready" };
+  const gs = state.gameState[key] || {status: "ready"};
   return `
     <article class="game-card ${gs.status === "downed" ? "down" : ""} ${gs.status === "kia" ? "kia" : ""} ${gs.status === "activated" ? "activated" : ""}">
       <div class="game-card-head">
@@ -628,39 +944,58 @@ function gameCard({key, name, type, stats, details}) {
         <span class="status-pill">${escapeHtml(gs.status)}</span>
       </div>
       <div class="game-stats">
-        ${Object.entries(stats).map(([k,v]) => `<div class="stat-chip"><span>${k}</span><strong>${v}</strong></div>`).join("")}
+        ${Object.entries(stats).map(([k,v]) => statChip(k, v)).join("")}
       </div>
       <div class="subtle">${details.map(escapeHtml).join(" · ")}</div>
       <div class="game-controls" style="margin-top:10px">
         ${["ready","activated","downed","kia"].map(status => `
-          <button class="${gs.status === status ? "active" : ""}" data-action="game-status" data-key="${key}" data-status="${status}" type="button">${status}</button>
+          <button class="${gs.status === status ? "active" : ""}"
+            data-action="game-status" data-key="${key}" data-status="${status}" type="button">${status}</button>
         `).join("")}
       </div>
     </article>
   `;
 }
 
-function addInfantry(unitId) {
+function addUnit(unitId) {
   const unit = byId(state.data.infantryUnits, unitId);
   if (!unit) return;
 
-  const existing = state.roster.infantry.find(x => x.unitId === unitId);
-  if (existing && unitId !== "heavy-weapons-specialist") {
-    existing.quantity += 1;
-  } else {
-    const entry = {
-      entryId: slugId("unit"),
+  // Configurable Heavy Weapon Specialists remain separate entries.
+  if (unit.weaponChoice) {
+    state.roster.infantry.push({
+      entryId: uid("unit"),
       unitId,
       quantity: 1,
       config: {}
-    };
-    state.roster.infantry.push(entry);
-    state.roster.displayOrder.push(entry.entryId);
+    });
+  } else {
+    const existing = state.roster.infantry.find(x => x.unitId === unitId);
+    if (existing) existing.quantity += 1;
+    else {
+      state.roster.infantry.push({
+        entryId: uid("unit"),
+        unitId,
+        quantity: 1,
+        config: {}
+      });
+    }
   }
+
   render();
 }
 
-function toggleArray(array, id, max = Infinity) {
+function removeOneUnit(unitId) {
+  const entries = state.roster.infantry.filter(x => x.unitId === unitId);
+  if (!entries.length) return;
+
+  const last = entries[entries.length - 1];
+  if (last.quantity > 1) last.quantity -= 1;
+  else state.roster.infantry = state.roster.infantry.filter(x => x.entryId !== last.entryId);
+  render();
+}
+
+function toggleSelection(array, id, max) {
   const idx = array.indexOf(id);
   if (idx >= 0) {
     array.splice(idx, 1);
@@ -671,6 +1006,11 @@ function toggleArray(array, id, max = Infinity) {
     return;
   }
   array.push(id);
+}
+
+function renderAndPersist() {
+  render();
+  persistCurrent();
 }
 
 function saveRoster() {
@@ -690,50 +1030,77 @@ function persistCurrent() {
 
 function exportRosterJson() {
   const payload = {
-    schemaVersion: 1,
+    schemaVersion: 3,
     format: "arsenal-builder-roster",
     exportedAt: new Date().toISOString(),
     roster: clone(state.roster)
   };
-  downloadFile(`${safeFileName(state.roster.name)}.arsenal.json`, JSON.stringify(payload, null, 2), "application/json");
+  downloadFile(
+    `${safeFileName(state.roster.name)}.arsenal.json`,
+    JSON.stringify(payload, null, 2),
+    "application/json"
+  );
 }
 
 function exportRosterText() {
-  const v = validateRoster();
+  const result = validateRoster();
+  const client = byId(state.data.corporateClients, state.roster.corporateClient);
   const lines = [
-    `${state.roster.name} — ${v.total}/${state.roster.threatLimit} Threat`,
-    byId(state.data.corporateClients, state.roster.corporateClient)?.name || "No Corporate Client",
+    `${state.roster.name} — ${result.total}/${state.roster.threatLimit} Threat`,
+    `Corporate Client: ${client?.name || "Not Selected"}`,
     ""
   ];
 
-  if (state.roster.mcv.profile) {
-    lines.push(`${byId(state.data.mcvProfiles, state.roster.mcv.profile)?.name} MCV`);
-    lines.push(`  Pilot: ${byId(state.data.pilotExperience, state.roster.mcv.pilotExperience)?.name || "—"}`);
-    lines.push(`  Shield: ${byId(state.data.mcvShields, state.roster.mcv.shield)?.name || "—"}`);
+  const profile = byId(state.data.mcvProfiles, state.roster.mcv.profile);
+  if (profile) {
+    lines.push(`${profile.name} MCV`);
     lines.push(`  Component: ${byId(state.data.mcvIntegratedComponents, state.roster.mcv.integratedComponent)?.name || "—"}`);
+    lines.push(`  Shield: ${byId(state.data.mcvShields, state.roster.mcv.shield)?.name || "—"}`);
     lines.push(`  Sidearm: ${byId(state.data.mcvWeapons, state.roster.mcv.sidearm)?.name || "—"}`);
-    if (state.roster.mcv.primaryWeapons.length) lines.push(`  Primary: ${state.roster.mcv.primaryWeapons.map(id => byId(state.data.mcvWeapons, id)?.name).join(", ")}`);
-    if (state.roster.mcv.equipment.length) lines.push(`  Equipment: ${state.roster.mcv.equipment.map(id => byId(state.data.mcvEquipment, id)?.name || byId(state.data.mcvWeapons, id)?.name).join(", ")}`);
+    if (state.roster.mcv.primaryWeapons.length) {
+      lines.push(`  Primary: ${state.roster.mcv.primaryWeapons.map(id => byId(state.data.mcvWeapons, id)?.name).join(", ")}`);
+    }
+    if (state.roster.mcv.equipment.length) {
+      lines.push(`  Equipment: ${state.roster.mcv.equipment.map(id =>
+        byId(state.data.mcvEquipment, id)?.name || byId(state.data.mcvWeapons, id)?.name
+      ).join(", ")}`);
+    }
     lines.push("");
   }
 
-  if (state.roster.infantry.length) {
-    lines.push("Infantry");
-    for (const e of state.roster.infantry) {
+  const pilots = state.roster.infantry.filter(x => byId(state.data.infantryUnits, x.unitId)?.type === "pilot");
+  if (pilots.length) {
+    lines.push("Pilots");
+    for (const e of pilots) {
       const u = byId(state.data.infantryUnits, e.unitId);
-      let suffix = "";
-      if (e.config?.weaponChoice) suffix = ` — ${byId(state.data.infantryWeapons, e.config.weaponChoice)?.name}`;
-      lines.push(`  ${e.quantity}× ${u?.name || e.unitId}${suffix}`);
+      lines.push(`  ${e.quantity}× ${u?.name || e.unitId}`);
+    }
+    lines.push("");
+  }
+
+  const others = state.roster.infantry.filter(x => byId(state.data.infantryUnits, x.unitId)?.type !== "pilot");
+  if (others.length) {
+    lines.push("Infantry");
+    for (const e of others) {
+      const u = byId(state.data.infantryUnits, e.unitId);
+      const weapon = e.config?.weaponChoice
+        ? ` — ${byId(state.data.infantryWeapons, e.config.weaponChoice)?.name || e.config.weaponChoice}`
+        : "";
+      lines.push(`  ${e.quantity}× ${u?.name || e.unitId}${weapon}`);
     }
     lines.push("");
   }
 
   if (state.roster.orbitalOrdnance.length) {
     lines.push("Orbital Ordnance");
-    for (const id of state.roster.orbitalOrdnance) lines.push(`  ${byId(state.data.orbitalOrdnance, id)?.name || id}`);
+    for (const id of state.roster.orbitalOrdnance) {
+      lines.push(`  ${byId(state.data.orbitalOrdnance, id)?.name || id}`);
+    }
   }
 
-  if (state.roster.backupMCV) lines.push(``, `Backup MCV: ${byId(state.data.backupMCVs, state.roster.backupMCV)?.name}`);
+  if (state.roster.backupMCV) {
+    lines.push("", `Backup MCV: ${byId(state.data.backupMCVs, state.roster.backupMCV)?.name || state.roster.backupMCV}`);
+  }
 
   downloadFile(`${safeFileName(state.roster.name)}.txt`, lines.join("\n"), "text/plain");
 }
@@ -751,171 +1118,179 @@ function downloadFile(name, content, type) {
 }
 
 function safeFileName(name) {
-  return (name || "arsenal-fireteam").replace(/[^\w\-]+/g, "-").replace(/^-+|-+$/g, "").toLowerCase() || "arsenal-fireteam";
+  return (name || "arsenal-fireteam")
+    .replace(/[^\w\-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .toLowerCase() || "arsenal-fireteam";
 }
 
-function showToast(msg) {
+function matches(q, ...values) {
+  if (!q) return true;
+  return values.filter(Boolean).join(" ").toLowerCase().includes(q);
+}
+
+function statChip(label, value) {
+  return `<div class="stat-chip"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`;
+}
+
+function summaryLine(label, value) {
+  return `<div class="summary-line"><span>${escapeHtml(label)}</span><span class="value">${escapeHtml(value)}</span></div>`;
+}
+
+function searchEmpty() {
+  return `<div class="search-empty">No matching options in this section.</div>`;
+}
+
+function showToast(message) {
   const toast = $("#toast");
-  toast.textContent = msg;
+  toast.textContent = message;
   toast.classList.add("show");
   clearTimeout(showToast.timer);
   showToast.timer = setTimeout(() => toast.classList.remove("show"), 2200);
 }
 
 function escapeHtml(value) {
-  return String(value ?? "").replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[ch]));
+  return String(value ?? "").replace(/[&<>"']/g, ch => ({
+    "&":"&amp;",
+    "<":"&lt;",
+    ">":"&gt;",
+    '"':"&quot;",
+    "'":"&#039;"
+  }[ch]));
 }
-function escapeAttr(value) { return escapeHtml(value).replace(/`/g, "&#096;"); }
 
-document.addEventListener("click", (e) => {
-  const btn = e.target.closest("[data-action]");
-  if (!btn) return;
-  const action = btn.dataset.action;
-  const id = btn.dataset.id;
+document.addEventListener("click", e => {
+  const actionEl = e.target.closest("[data-action]");
+  if (!actionEl) return;
 
-  if (action === "add-infantry") addInfantry(id);
+  const action = actionEl.dataset.action;
+  const id = actionEl.dataset.id;
 
-  if (action === "select-sponsor") {
-    state.roster.corporateClient = id;
-    render();
-  }
-
-  if (action === "choose-profile") {
-    state.roster.mcv.profile = id;
-    render();
-  }
-
-  if (action === "select-mcv-single") {
-    state.roster.mcv[btn.dataset.field] = id;
-    render();
-  }
-
-  if (action === "toggle-primary") {
-    toggleArray(state.roster.mcv.primaryWeapons, id, effectiveLimits().primaryMax);
-    render();
-  }
-
-  if (action === "toggle-equipment") {
-    toggleArray(state.roster.mcv.equipment, id, effectiveLimits().equipmentMax);
-    render();
-  }
-
-  if (action === "increment-infantry") {
-    const x = state.roster.infantry.find(x => x.entryId === btn.dataset.entry);
-    if (x) x.quantity += 1;
-    render();
-  }
-
-  if (action === "decrement-infantry") {
-    const x = state.roster.infantry.find(x => x.entryId === btn.dataset.entry);
-    if (x) {
-      x.quantity -= 1;
-      if (x.quantity <= 0) state.roster.infantry = state.roster.infantry.filter(y => y.entryId !== x.entryId);
-    }
-    render();
-  }
-
-  if (action === "remove-infantry") {
-    state.roster.infantry = state.roster.infantry.filter(x => x.entryId !== btn.dataset.entry);
-    render();
-    showToast("Unit removed.");
-  }
-
-  if (action === "add-ordnance") {
-    toggleArray(state.roster.orbitalOrdnance, id, effectiveLimits().ordnanceMax);
-    render();
-  }
-
-  if (action === "remove-ordnance") {
-    state.roster.orbitalOrdnance = state.roster.orbitalOrdnance.filter(x => x !== id);
-    render();
-  }
-
-  if (action === "toggle-backup") {
+  if (action === "set-mcv-field") {
+    state.roster.mcv[actionEl.dataset.field] = id;
+  } else if (action === "toggle-primary") {
+    toggleSelection(state.roster.mcv.primaryWeapons, id, effectiveLimits().primaryMax);
+  } else if (action === "toggle-equipment") {
+    toggleSelection(state.roster.mcv.equipment, id, effectiveLimits().equipmentMax);
+  } else if (action === "toggle-backup") {
     state.roster.backupMCV = state.roster.backupMCV === id ? null : id;
-    render();
-  }
-
-  if (action === "game-status") {
-    state.gameState[btn.dataset.key] = { status: btn.dataset.status };
+  } else if (action === "add-unit") {
+    addUnit(id);
+    persistCurrent();
+    return;
+  } else if (action === "remove-one-unit") {
+    removeOneUnit(id);
+    persistCurrent();
+    return;
+  } else if (action === "remove-all-unit") {
+    state.roster.infantry = state.roster.infantry.filter(x => x.unitId !== id);
+  } else if (action === "select-client") {
+    state.roster.corporateClient = id;
+  } else if (action === "toggle-ordnance") {
+    toggleSelection(state.roster.orbitalOrdnance, id, effectiveLimits().ordnanceMax);
+  } else if (action === "game-status") {
+    const key = actionEl.dataset.key;
+    state.gameState[key] = {...(state.gameState[key] || {}), status: actionEl.dataset.status};
     renderGame();
+    return;
   }
 
-  persistCurrent();
+  renderAndPersist();
 });
 
-document.addEventListener("change", (e) => {
+document.addEventListener("change", e => {
+  if (e.target.matches('[data-action="mount-pilot"]')) {
+    state.gameState["main-mcv"] = {
+      ...(state.gameState["main-mcv"] || {status: "ready"}),
+      mountedPilotKey: e.target.value || null
+    };
+    renderGame();
+    return;
+  }
+
   if (e.target.matches('[data-action="heavy-weapon-choice"]')) {
     const entry = state.roster.infantry.find(x => x.entryId === e.target.dataset.entry);
     if (entry) {
       entry.config ||= {};
       entry.config.weaponChoice = e.target.value || null;
-      render();
-      persistCurrent();
+      renderAndPersist();
     }
   }
 });
 
 $("#operationName").addEventListener("input", e => {
   state.roster.name = e.target.value;
-  $("#rosterTitle").textContent = e.target.value || "Untitled Operation";
+  $("#summaryContractName").textContent = e.target.value || "Untitled Operation";
   $("#gameTitle").textContent = e.target.value || "Untitled Operation";
   persistCurrent();
 });
 
 $("#threatLimit").addEventListener("input", e => {
-  const value = Math.max(1, parseInt(e.target.value || "1", 10));
-  state.roster.threatLimit = value;
-  render();
-  persistCurrent();
+  state.roster.threatLimit = Math.max(1, parseInt(e.target.value || "1", 10));
+  renderAndPersist();
 });
 
 $("#catalogSearch").addEventListener("input", e => {
   state.search = e.target.value;
-  renderCatalog();
+  renderBuildContent();
 });
 
-$("#catalogTabs").addEventListener("click", e => {
+$("#builderTabs").addEventListener("click", e => {
   const btn = e.target.closest("[data-tab]");
   if (!btn) return;
-  state.catalogTab = btn.dataset.tab;
-  $$(".catalog-tab").forEach(x => x.classList.toggle("active", x === btn));
-  renderCatalog();
+
+  state.activeTab = btn.dataset.tab;
+  state.search = "";
+  $("#catalogSearch").value = "";
+  $$(".builder-tab").forEach(x => x.classList.toggle("active", x === btn));
+  renderBuildContent();
 });
 
-$$(".mode-tab").forEach(btn => btn.addEventListener("click", () => {
-  const mode = btn.dataset.mode;
-  if (mode === "build") {
-    $("#buildMode").classList.remove("hidden");
-    $("#gameMode").classList.add("hidden");
-    document.querySelector(".catalog-panel").classList.remove("mobile-hidden");
-    $("#rosterPanel").classList.remove("mobile-hidden");
-  }
-  if (mode === "game") {
-    $("#buildMode").classList.add("hidden");
-    $("#gameMode").classList.remove("hidden");
-  }
-  if (mode === "roster") {
-    $("#buildMode").classList.remove("hidden");
-    $("#gameMode").classList.add("hidden");
-    document.querySelector(".catalog-panel").classList.add("mobile-hidden");
-    $("#rosterPanel").classList.remove("mobile-hidden");
-  }
-  $$(".mode-tab").forEach(x => x.classList.toggle("active", x === btn));
-}));
+$$(".mode-tab").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const mode = btn.dataset.mode;
+
+    if (mode === "build") {
+      $("#buildMode").classList.remove("hidden");
+      $("#gameMode").classList.add("hidden");
+      $(".build-panel").classList.remove("mobile-hidden");
+      $("#summaryPanel").classList.remove("mobile-hidden");
+    }
+
+    if (mode === "game") {
+      $("#buildMode").classList.add("hidden");
+      $("#gameMode").classList.remove("hidden");
+    }
+
+    if (mode === "summary") {
+      $("#buildMode").classList.remove("hidden");
+      $("#gameMode").classList.add("hidden");
+      $(".build-panel").classList.add("mobile-hidden");
+      $("#summaryPanel").classList.remove("mobile-hidden");
+    }
+
+    $$(".mode-tab").forEach(x => x.classList.toggle("active", x === btn));
+  });
+});
 
 $("#saveListBtn").addEventListener("click", saveRoster);
+
 $("#newListBtn").addEventListener("click", () => {
-  if (!confirm("Start a new Fireteam? Your current list will remain saved only if you previously pressed Save.")) return;
+  if (!confirm("Start a new Fireteam? Save the current one first if you want to keep it.")) return;
   state.roster = defaultRoster();
   state.gameState = {};
-  render();
-  persistCurrent();
+  state.activeTab = "mcv";
+  state.search = "";
+  $("#catalogSearch").value = "";
+  $$(".builder-tab").forEach(x => x.classList.toggle("active", x.dataset.tab === "mcv"));
+  renderAndPersist();
 });
+
 $("#manageBtn").addEventListener("click", () => $("#manageDialog").showModal());
 $("#closeManageBtn").addEventListener("click", () => $("#manageDialog").close());
 $("#exportJsonBtn").addEventListener("click", exportRosterJson);
 $("#exportTextBtn").addEventListener("click", exportRosterText);
+
 $("#resetGameStateBtn").addEventListener("click", () => {
   state.gameState = {};
   renderGame();
@@ -925,75 +1300,53 @@ $("#resetGameStateBtn").addEventListener("click", () => {
 $("#importFile").addEventListener("change", async e => {
   const file = e.target.files?.[0];
   if (!file) return;
+
   const preview = $("#importPreview");
+
   try {
     const parsed = JSON.parse(await file.text());
-    const roster = parsed.roster || parsed;
-    if (roster.game !== "arsenal") throw new Error("This is not an Arsenal roster.");
-    if (!roster.mcv || !Array.isArray(roster.infantry)) throw new Error("Roster structure is incomplete.");
+    const imported = parsed.roster || parsed;
 
+    if (imported.game !== "arsenal") throw new Error("This is not an Arsenal roster.");
+    if (!imported.mcv || !Array.isArray(imported.infantry)) {
+      throw new Error("Roster structure is incomplete.");
+    }
+
+    const roster = normalizeRoster(imported);
     preview.innerHTML = `
       <strong>${escapeHtml(roster.name || "Imported Fireteam")}</strong><br>
-      ${roster.infantry.reduce((n,x) => n + (x.quantity || 0), 0)} infantry · limit ${roster.threatLimit || 50} Threat
-      <div style="margin-top:8px"><button id="confirmImportBtn" class="button primary" type="button">Import as New Fireteam</button></div>
+      ${roster.infantry.reduce((sum, x) => sum + x.quantity, 0)} infantry · ${roster.threatLimit} Threat limit
+      <div style="margin-top:8px">
+        <button id="confirmImportBtn" class="button primary" type="button">Import as New Fireteam</button>
+      </div>
     `;
+
     $("#confirmImportBtn").addEventListener("click", () => {
-      state.roster = clone(roster);
-      state.roster.id = slugId("roster");
-      state.roster.name = roster.name ? `${roster.name} (Imported)` : "Imported Fireteam";
+      roster.id = uid("roster");
+      roster.name = roster.name ? `${roster.name} (Imported)` : "Imported Fireteam";
+      state.roster = roster;
       state.gameState = {};
-      render();
-      persistCurrent();
+      renderAndPersist();
       $("#manageDialog").close();
       showToast("Roster imported.");
-    }, {once:true});
+    }, {once: true});
   } catch (err) {
     preview.textContent = `Could not import: ${err.message}`;
   }
 });
 
-let draggedEntry = null;
-document.addEventListener("dragstart", e => {
-  const row = e.target.closest(".roster-item[draggable='true']");
-  if (!row) return;
-  draggedEntry = row.dataset.entry;
-  row.classList.add("dragging");
-});
-document.addEventListener("dragend", e => {
-  const row = e.target.closest(".roster-item[draggable='true']");
-  if (row) row.classList.remove("dragging");
-  $$(".drop-target").forEach(x => x.classList.remove("drop-target"));
-  draggedEntry = null;
-});
-document.addEventListener("dragover", e => {
-  const row = e.target.closest(".roster-item[draggable='true']");
-  if (!row || !draggedEntry || row.dataset.entry === draggedEntry) return;
-  e.preventDefault();
-  $$(".drop-target").forEach(x => x.classList.remove("drop-target"));
-  row.classList.add("drop-target");
-});
-document.addEventListener("drop", e => {
-  const row = e.target.closest(".roster-item[draggable='true']");
-  if (!row || !draggedEntry) return;
-  e.preventDefault();
-  const from = state.roster.infantry.findIndex(x => x.entryId === draggedEntry);
-  const to = state.roster.infantry.findIndex(x => x.entryId === row.dataset.entry);
-  if (from >= 0 && to >= 0 && from !== to) {
-    const [moved] = state.roster.infantry.splice(from, 1);
-    state.roster.infantry.splice(to, 0, moved);
-    render();
-    persistCurrent();
-  }
-});
-
 async function init() {
   const response = await fetch("data/arsenal.json");
+  if (!response.ok) throw new Error(`Could not load data/arsenal.json (${response.status}).`);
   state.data = await response.json();
 
-  const savedCurrent = localStorage.getItem("arsenal.currentRoster");
-  if (savedCurrent) {
-    try { state.roster = JSON.parse(savedCurrent); }
-    catch { state.roster = defaultRoster(); }
+  const saved = localStorage.getItem("arsenal.currentRoster");
+  if (saved) {
+    try {
+      state.roster = normalizeRoster(JSON.parse(saved));
+    } catch {
+      state.roster = defaultRoster();
+    }
   } else {
     state.roster = defaultRoster();
   }
@@ -1002,5 +1355,11 @@ async function init() {
 }
 
 init().catch(err => {
-  document.body.innerHTML = `<main style="padding:30px;color:white;font-family:sans-serif"><h1>Could not load Arsenal data</h1><p>${escapeHtml(err.message)}</p><p>Serve this folder from a local web server or GitHub Pages rather than opening index.html directly from the filesystem.</p></main>`;
+  document.body.innerHTML = `
+    <main style="padding:30px;color:white;font-family:sans-serif">
+      <h1>Could not load Arsenal data</h1>
+      <p>${escapeHtml(err.message)}</p>
+      <p>Serve this folder through a local web server or GitHub Pages rather than opening index.html directly.</p>
+    </main>
+  `;
 });

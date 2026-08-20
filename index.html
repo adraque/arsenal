@@ -4,13 +4,13 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Arsenal Fireteam Builder</title>
-  <meta name="description" content="A client-side Arsenal fireteam builder designed for GitHub Pages.">
+  <meta name="description" content="Build and manage an Arsenal mercenary fireteam.">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <header class="app-header">
     <div class="brand">
-      <div class="brand-mark" aria-hidden="true">A</div>
+      <img class="brand-mark" src="assets/arsenal-a.png" alt="" aria-hidden="true">
       <div>
         <div class="eyebrow">ARSENAL</div>
         <h1>Fireteam Builder</h1>
@@ -25,9 +25,9 @@
   </header>
 
   <main class="app-shell">
-    <section class="list-meta">
-      <label class="field operation-field">
-        <span>Operation</span>
+    <section class="contract-bar">
+      <label class="field name-field">
+        <span>Operation / Contract Name</span>
         <input id="operationName" type="text" value="Untitled Operation" maxlength="80">
       </label>
 
@@ -36,90 +36,60 @@
         <input id="threatLimit" type="number" min="1" step="1" value="50">
       </label>
 
-      <div class="status-card" id="statusCard" aria-live="polite">
+      <div class="top-status" id="topStatus" aria-live="polite">
         <div>
-          <span class="status-label">Threat</span>
+          <span class="status-label">Current Threat</span>
           <strong id="threatStatus">0 / 50</strong>
         </div>
         <div class="status-pill" id="legalStatus">Incomplete</div>
       </div>
     </section>
 
-    <nav class="mode-tabs" aria-label="Builder mode">
+    <nav class="mode-tabs" aria-label="Application mode">
       <button class="mode-tab active" data-mode="build" type="button">Build</button>
       <button class="mode-tab" data-mode="game" type="button">Game</button>
-      <button class="mode-tab mobile-only" data-mode="roster" type="button">Fireteam</button>
+      <button class="mode-tab mobile-only" data-mode="summary" type="button">Fireteam</button>
     </nav>
 
     <section class="builder-grid" id="buildMode">
-      <aside class="catalog-panel">
+      <aside class="build-panel">
         <div class="panel-heading">
           <div>
-            <div class="eyebrow">AVAILABLE</div>
+            <div class="eyebrow">BUILD</div>
             <h2>Contract Assets</h2>
           </div>
-          <input id="catalogSearch" class="search" type="search" placeholder="Search units">
+          <input id="catalogSearch" class="search" type="search" placeholder="Search this tab">
         </div>
 
-        <div class="catalog-tabs" id="catalogTabs">
-          <button class="catalog-tab active" data-tab="infantry" type="button">Infantry</button>
-          <button class="catalog-tab" data-tab="mcv" type="button">MCV</button>
-          <button class="catalog-tab" data-tab="ordnance" type="button">Ordnance</button>
-        </div>
+        <nav class="builder-tabs" id="builderTabs" aria-label="Fireteam construction sections">
+          <button class="builder-tab active" data-tab="mcv" type="button">MCV</button>
+          <button class="builder-tab" data-tab="pilot" type="button">Pilot</button>
+          <button class="builder-tab" data-tab="infantry" type="button">Infantry</button>
+          <button class="builder-tab" data-tab="clients" type="button">Clients</button>
+          <button class="builder-tab" data-tab="ordnance" type="button">Ordnance</button>
+        </nav>
 
-        <div id="catalogContent"></div>
+        <div id="buildContent" class="build-content"></div>
       </aside>
 
-      <section class="roster-panel" id="rosterPanel">
-        <div class="panel-heading sticky">
+      <section class="summary-panel" id="summaryPanel">
+        <div class="summary-heading">
           <div>
             <div class="eyebrow">ACTIVE FIRETEAM</div>
-            <h2 id="rosterTitle">Untitled Operation</h2>
+            <h2 id="summaryContractName">Untitled Operation</h2>
+            <div class="client-line">
+              Corporate Client:
+              <strong id="summaryClientName" class="placeholder">Not Selected</strong>
+            </div>
           </div>
-          <div class="remaining" id="remainingThreat">50 TH remaining</div>
+          <div class="summary-threat">
+            <strong id="summaryThreat">0 / 50 TH</strong>
+            <span id="summaryRemaining">50 remaining</span>
+          </div>
         </div>
 
         <div class="validation-box" id="validationBox"></div>
-
-        <div class="roster-section">
-          <div class="section-title">
-            <h3>Corporate Client</h3>
-            <span>1 required</span>
-          </div>
-          <div id="sponsorSelection"></div>
-        </div>
-
-        <div class="roster-section">
-          <div class="section-title">
-            <h3>Main MCV</h3>
-            <span>configure chassis & loadout</span>
-          </div>
-          <div id="mcvBuilder"></div>
-        </div>
-
-        <div class="roster-section">
-          <div class="section-title">
-            <h3>Infantry</h3>
-            <span id="infantryCounter">0 / 12</span>
-          </div>
-          <div id="rosterInfantry"></div>
-        </div>
-
-        <div class="roster-section">
-          <div class="section-title">
-            <h3>Orbital Ordnance</h3>
-            <span id="ordnanceCounter">0 / 1</span>
-          </div>
-          <div id="rosterOrdnance"></div>
-        </div>
-
-        <div class="roster-section">
-          <div class="section-title">
-            <h3>Backup MCV</h3>
-            <span>optional</span>
-          </div>
-          <div id="backupMcv"></div>
-        </div>
+        <div id="summaryContent" class="summary-content"></div>
       </section>
     </section>
 
@@ -133,8 +103,6 @@
       </div>
       <div id="gameCards" class="game-grid"></div>
     </section>
-
-    <section id="savedListsView" class="saved-lists hidden"></section>
   </main>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
@@ -151,7 +119,7 @@
     <div class="dialog-grid">
       <section>
         <h3>Export</h3>
-        <p>Our native JSON is the lossless format. Text is convenient for Discord or messages.</p>
+        <p>Arsenal JSON is the lossless native roster format. Text is convenient for Discord, messages, or notes.</p>
         <div class="dialog-actions">
           <button id="exportJsonBtn" class="button primary" type="button">Download JSON</button>
           <button id="exportTextBtn" class="button secondary" type="button">Download Text</button>
@@ -160,7 +128,7 @@
 
       <section>
         <h3>Import</h3>
-        <p>Import an Arsenal Builder JSON roster. It opens as a new Fireteam after validation.</p>
+        <p>Import a roster exported from this builder. It opens as a new Fireteam after validation.</p>
         <label class="file-drop">
           <span>Choose roster file</span>
           <input id="importFile" type="file" accept=".json,application/json">
@@ -170,7 +138,7 @@
 
       <section class="future-box">
         <h3>New Recruit</h3>
-        <p>.rosz import/export is intentionally reserved for the adapter layer. The roster schema already preserves the structure needed for round-trip mapping.</p>
+        <p>The internal roster model keeps New Recruit/BattleScribe interoperability in mind. Actual .rosz round-trip support will be added and tested against a real Arsenal export.</p>
         <span class="future-badge">Planned compatibility</span>
       </section>
     </div>

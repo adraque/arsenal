@@ -20,11 +20,6 @@
       },
       {
         "rank": 3,
-        "name": "Arsenal official supplement (title/page citation pending)",
-        "authority": "official-supplement"
-      },
-      {
-        "rank": 4,
         "name": "Arsenal Updated.gst",
         "revision": 6,
         "battleScribeVersion": "2.03",
@@ -33,9 +28,7 @@
     ],
     "notes": [
       "Errata overrides the printed rulebook wherever they conflict.",
-      "Vanguard Specialist, Hunter, QPID LLC, and V’Dey Technologies are official supplement content.",
-      "Supplement title/page citations are pending until the supplement is supplied.",
-      "GST IDs are retained for interoperability and traceability."
+      "Community GST additions are preserved but explicitly marked as community content."
     ]
   },
   "construction": {
@@ -248,27 +241,23 @@
     {
       "id": "qpid-llc",
       "name": "QPID LLC",
-      "status": "official",
+      "status": "community",
       "perk": "All grunt infantry are equipped with the Tactical Bow as their primary weapon.",
       "effectType": "loadoutModifier",
       "source": {
         "gstSelectionId": "dd12-aefc-1439-e01d",
-        "gstProfileId": "1613-aece-d9f4-a1ec",
-        "authority": "official-supplement",
-        "supplementCitation": "pending"
+        "gstProfileId": "1613-aece-d9f4-a1ec"
       }
     },
     {
       "id": "vdey-technologies",
       "name": "V’Dey Technologies",
-      "status": "official",
+      "status": "community",
       "perk": "All Specialists can climb terrain up to 10 inches in height.",
       "effectType": "gameplayEffect",
       "source": {
         "gstSelectionId": "be82-bc12-e146-7f6b",
-        "gstProfileId": "574a-2b53-4d73-fefe",
-        "authority": "official-supplement",
-        "supplementCitation": "pending"
+        "gstProfileId": "574a-2b53-4d73-fefe"
       }
     }
   ],
@@ -909,7 +898,7 @@
     {
       "id": "tactical-bow",
       "name": "Tactical Bow",
-      "status": "official",
+      "status": "community",
       "range": 24,
       "aoe": null,
       "targetNumber": 2,
@@ -921,10 +910,7 @@
         "Limited Range"
       ],
       "source": {
-        "gstProfileId": "8427-feb7-60c6-15e4",
-        "authority": "official-supplement",
-        "supplementCitation": "pending",
-        "currentDataBasis": "GST transcription pending supplement verification"
+        "gstProfileId": "8427-feb7-60c6-15e4"
       }
     }
   ],
@@ -1203,7 +1189,7 @@
     {
       "id": "vanguard-specialist",
       "name": "Vanguard",
-      "status": "official",
+      "status": "community",
       "type": "specialist",
       "threat": 10,
       "speed": 8,
@@ -1220,15 +1206,13 @@
       },
       "source": {
         "gstSelectionId": "9418-4276-4433-45f7",
-        "gstProfileId": "4268-5e04-e4eb-e693",
-        "authority": "official-supplement",
-        "supplementCitation": "pending"
+        "gstProfileId": "4268-5e04-e4eb-e693"
       }
     },
     {
       "id": "hunter",
       "name": "Hunter",
-      "status": "official",
+      "status": "community",
       "type": "specialist",
       "threat": 4,
       "speed": 5,
@@ -1243,9 +1227,7 @@
       ],
       "source": {
         "gstSelectionId": "7f27-ebe6-5113-b68e",
-        "gstProfileId": "42d9-f03f-6118-2d6a",
-        "authority": "official-supplement",
-        "supplementCitation": "pending"
+        "gstProfileId": "42d9-f03f-6118-2d6a"
       }
     }
   ],
@@ -1468,33 +1450,5 @@
       "backupMCVMax": 1,
       "equipmentCounting": "The GST Equipment category includes both chassis equipment and MCV Equipment weapons."
     }
-  },
-  "officialSupplementContent": {
-    "citationStatus": "pending",
-    "items": [
-      {
-        "type": "corporateClient",
-        "id": "qpid-llc"
-      },
-      {
-        "type": "corporateClient",
-        "id": "vdey-technologies"
-      },
-      {
-        "type": "specialist",
-        "id": "vanguard-specialist"
-      },
-      {
-        "type": "specialist",
-        "id": "hunter"
-      }
-    ],
-    "dependentData": [
-      {
-        "type": "weapon",
-        "id": "tactical-bow",
-        "note": "Used by Hunter and QPID LLC; current stats retained from GST pending supplement verification."
-      }
-    ]
   }
 }
