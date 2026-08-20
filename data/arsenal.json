@@ -1,0 +1,1500 @@
+{
+  "schemaVersion": "1.0.0",
+  "game": {
+    "id": "arsenal",
+    "name": "Arsenal",
+    "defaultThreatLimit": 50,
+    "sourceAuthority": [
+      {
+        "rank": 1,
+        "name": "Arsenal FAQ & Errata",
+        "version": "1.2",
+        "date": "2025-10-26",
+        "authority": "official-errata"
+      },
+      {
+        "rank": 2,
+        "name": "Blaster Vol. 07: Arsenal",
+        "year": 2024,
+        "authority": "official-rulebook"
+      },
+      {
+        "rank": 3,
+        "name": "Arsenal official supplement (title/page citation pending)",
+        "authority": "official-supplement"
+      },
+      {
+        "rank": 4,
+        "name": "Arsenal Updated.gst",
+        "revision": 6,
+        "battleScribeVersion": "2.03",
+        "authority": "community-data"
+      }
+    ],
+    "notes": [
+      "Errata overrides the printed rulebook wherever they conflict.",
+      "Vanguard Specialist, Hunter, QPID LLC, and V’Dey Technologies are official supplement content.",
+      "Supplement title/page citations are pending until the supplement is supplied.",
+      "GST IDs are retained for interoperability and traceability."
+    ]
+  },
+  "construction": {
+    "threat": {
+      "default": 50,
+      "configurable": true,
+      "source": {
+        "type": "errata",
+        "page": 3,
+        "printedPreviousValue": 60
+      }
+    },
+    "corporateClient": {
+      "min": 1,
+      "max": 1
+    },
+    "mainMCV": {
+      "min": 1,
+      "max": 1,
+      "maxDeployedUnlessScenarioOverrides": 1
+    },
+    "infantry": {
+      "min": 1,
+      "max": 12,
+      "countsAsInfantry": [
+        "grunt",
+        "specialist",
+        "pilot"
+      ],
+      "grunt": {
+        "min": 0,
+        "max": 12
+      },
+      "specialist": {
+        "min": 0,
+        "max": 7,
+        "maxPerType": 2
+      },
+      "pilot": {
+        "min": 1,
+        "max": 2
+      }
+    },
+    "orbitalOrdnance": {
+      "min": 0,
+      "max": 1,
+      "costEach": 5
+    },
+    "backupMCV": {
+      "min": 0,
+      "max": 1,
+      "effects": {
+        "infantryMax": 8,
+        "specialistMax": 3
+      }
+    }
+  },
+  "conditionalRules": [
+    {
+      "id": "encom-extra-ordnance",
+      "when": {
+        "corporateClient": "encom"
+      },
+      "set": {
+        "construction.orbitalOrdnance.max": 2
+      }
+    },
+    {
+      "id": "nile-specialist-cap",
+      "when": {
+        "corporateClient": "nile"
+      },
+      "effect": "One chosen specialist type may have a maximum of 3 instead of 2.",
+      "implementation": {
+        "selector": "specialistType",
+        "set": {
+          "selectedSpecialistType.max": 3
+        }
+      }
+    },
+    {
+      "id": "veteran-mcv-loadout",
+      "when": {
+        "pilotExperience": "veteran"
+      },
+      "set": {
+        "mcvLoadout.primaryWeapons.max": 1,
+        "mcvLoadout.equipment.max": 4
+      }
+    },
+    {
+      "id": "backup-machete-roster-reduction",
+      "when": {
+        "backupMCV": "machete"
+      },
+      "set": {
+        "construction.infantry.max": 8,
+        "construction.infantry.specialist.max": 3
+      }
+    }
+  ],
+  "mcvLoadout": {
+    "profile": {
+      "min": 1,
+      "max": 1,
+      "required": true
+    },
+    "pilotExperience": {
+      "min": 1,
+      "max": 1,
+      "required": true
+    },
+    "integratedComponent": {
+      "min": 1,
+      "max": 1,
+      "required": true
+    },
+    "shield": {
+      "min": 1,
+      "max": 1,
+      "required": true
+    },
+    "sidearm": {
+      "min": 1,
+      "max": 1,
+      "required": true,
+      "interpretationNote": "Treated as mandatory because the printed MCV procedure places Sidearm under 'Select Components' and says to choose one. The FAQ says components are mandatory while MCV weapons/equipment are optional."
+    },
+    "primaryWeapons": {
+      "min": 0,
+      "max": 2,
+      "unique": true,
+      "required": false,
+      "note": "FAQ makes MCV weapons optional."
+    },
+    "equipment": {
+      "min": 0,
+      "max": 3,
+      "unique": true,
+      "required": false,
+      "note": "FAQ makes MCV equipment optional.",
+      "eligibleCollections": [
+        "mcvEquipment",
+        "mcvWeapons where slot == 'equipment'"
+      ],
+      "countingNote": "The GST places both chassis equipment (Jump Jet, Heat Sink, etc.) and weapon-profile items typed as MCV Equipment (LASR Armament, EM-C Net Launcher, Infrared Array Missile Pod, Mounted LMG) in the same Equipment selection group/category, so all count toward the same effective Equipment cap."
+    }
+  },
+  "corporateClients": [
+    {
+      "id": "encom",
+      "name": "Encom",
+      "status": "official",
+      "perk": "Fireteam may purchase two Orbital Ordnances.",
+      "effectType": "constructionModifier",
+      "source": {
+        "rulebookPage": 26
+      }
+    },
+    {
+      "id": "brentwood",
+      "name": "Brentwood",
+      "status": "official",
+      "perk": "During one Ingress Phase, place 3 Ammo Cache tokens beyond 12 inches of your MCV and 8 inches from any other Ammo Cache. Interact Tactics 6 gives the model +1 ammo for a carried weapon with an ammunition stat.",
+      "effectType": "gameplayEffect",
+      "source": {
+        "rulebookPage": 26
+      }
+    },
+    {
+      "id": "gaizon",
+      "name": "Gaizon",
+      "status": "official",
+      "perk": "Infantry models get +1 Defense die on defense rolls.",
+      "effectType": "gameplayEffect",
+      "source": {
+        "rulebookPage": 26
+      }
+    },
+    {
+      "id": "tsunsuma",
+      "name": "Tsunsuma",
+      "status": "official",
+      "perk": "Your first MCV deployed gains +2 Armor.",
+      "effectType": "gameplayEffect",
+      "source": {
+        "rulebookPage": 27
+      }
+    },
+    {
+      "id": "mosaic",
+      "name": "Mosaic",
+      "status": "official",
+      "perk": "Advanced Signal Jammer: MCV cannot be targeted by ranged attacks by the same MCV twice during the same Action Phase.",
+      "effectType": "gameplayEffect",
+      "source": {
+        "rulebookPage": 27
+      }
+    },
+    {
+      "id": "nile",
+      "name": "Nile",
+      "status": "official",
+      "perk": "You may have up to three of the same specialist infantry of any one type in your Fireteam.",
+      "effectType": "constructionModifier",
+      "source": {
+        "rulebookPage": 27
+      }
+    },
+    {
+      "id": "qpid-llc",
+      "name": "QPID LLC",
+      "status": "official",
+      "perk": "All grunt infantry are equipped with the Tactical Bow as their primary weapon.",
+      "effectType": "loadoutModifier",
+      "source": {
+        "gstSelectionId": "dd12-aefc-1439-e01d",
+        "gstProfileId": "1613-aece-d9f4-a1ec",
+        "authority": "official-supplement",
+        "supplementCitation": "pending"
+      }
+    },
+    {
+      "id": "vdey-technologies",
+      "name": "V’Dey Technologies",
+      "status": "official",
+      "perk": "All Specialists can climb terrain up to 10 inches in height.",
+      "effectType": "gameplayEffect",
+      "source": {
+        "gstSelectionId": "be82-bc12-e146-7f6b",
+        "gstProfileId": "574a-2b53-4d73-fefe",
+        "authority": "official-supplement",
+        "supplementCitation": "pending"
+      }
+    }
+  ],
+  "mcvProfiles": [
+    {
+      "id": "bastion",
+      "name": "Bastion",
+      "speed": 8,
+      "armor": 11,
+      "baseActions": 2,
+      "source": {
+        "rulebookPage": 28,
+        "printedName": "Vanguard",
+        "errata": "Change Vanguard Profile to Bastion Profile."
+      }
+    },
+    {
+      "id": "phalanx",
+      "name": "Phalanx",
+      "speed": 6,
+      "armor": 13,
+      "baseActions": 2,
+      "source": {
+        "rulebookPage": 28
+      }
+    },
+    {
+      "id": "blitz",
+      "name": "Blitz",
+      "speed": 10,
+      "armor": 8,
+      "baseActions": 2,
+      "source": {
+        "rulebookPage": 28
+      }
+    }
+  ],
+  "pilotExperience": [
+    {
+      "id": "green",
+      "name": "Green",
+      "actionBonus": 0,
+      "armorModifier": 2,
+      "primaryWeaponMax": 2,
+      "equipmentMax": 3
+    },
+    {
+      "id": "experienced",
+      "name": "Experienced",
+      "actionBonus": 1,
+      "armorModifier": 0,
+      "primaryWeaponMax": 2,
+      "equipmentMax": 3
+    },
+    {
+      "id": "veteran",
+      "name": "Veteran",
+      "actionBonus": 2,
+      "armorModifier": 0,
+      "primaryWeaponMax": 1,
+      "equipmentMax": 4
+    }
+  ],
+  "mcvIntegratedComponents": [
+    {
+      "id": "reinforced-ablative-coating",
+      "name": "Reinforced Ablative Coating",
+      "armorModifier": 1,
+      "speedModifier": 0
+    },
+    {
+      "id": "anti-ballistic-weave",
+      "name": "Anti Ballistic Weave",
+      "armorModifier": 2,
+      "speedModifier": -1
+    },
+    {
+      "id": "integrated-material-defender-array",
+      "name": "Integrated Material Defender Array",
+      "armorModifier": 3,
+      "speedModifier": -2
+    },
+    {
+      "id": "aegis-frame",
+      "name": "Aegis Frame",
+      "armorModifier": 4,
+      "speedModifier": -3
+    },
+    {
+      "id": "advanced-motor-control-system",
+      "name": "Advanced Motor Control System",
+      "armorModifier": 0,
+      "speedModifier": 1
+    },
+    {
+      "id": "reactive-cerebral-enhancement",
+      "name": "Reactive Cerebral Enhancement",
+      "armorModifier": -2,
+      "speedModifier": 2
+    },
+    {
+      "id": "adrenal-stims-pump",
+      "name": "Adrenal Stims Pump",
+      "armorModifier": 0,
+      "speedModifier": 0,
+      "ability": "Stims: Ammo 1. Gain 1 additional attack or move action."
+    },
+    {
+      "id": "bicameral-recall-resonator",
+      "name": "Bicameral Recall Resonator",
+      "armorModifier": 0,
+      "speedModifier": 0,
+      "ability": "Once per activation you may change Weapons as a free action."
+    }
+  ],
+  "mcvShields": [
+    {
+      "id": "gaizon-shield-array",
+      "name": "Gaizon Shield Array",
+      "defense": "5+",
+      "speedModifier": 0,
+      "armorModifier": 0
+    },
+    {
+      "id": "juniper-4-shield-mesh",
+      "name": "Juniper 4 Shield Mesh",
+      "defense": "4+",
+      "speedModifier": -1,
+      "armorModifier": -1
+    },
+    {
+      "id": "phthalo-blue-shield-matrix",
+      "name": "Phthalo Blue Shield Matrix",
+      "defense": "3+",
+      "speedModifier": -3,
+      "armorModifier": -4
+    }
+  ],
+  "mcvEquipment": [
+    {
+      "id": "jump-jet",
+      "name": "Jump Jet",
+      "speedModifier": 0,
+      "armorModifier": -2,
+      "ability": "Jump to a surface the MCV can balance on within 10 inches vertically and 5 inches laterally as a movement action."
+    },
+    {
+      "id": "heat-sink",
+      "name": "Heat Sink",
+      "speedModifier": -1,
+      "armorModifier": 0,
+      "ability": "Make 1 free attack. Ammo 2."
+    },
+    {
+      "id": "sniper-config",
+      "name": "Sniper Config",
+      "speedModifier": -2,
+      "armorModifier": 0,
+      "ability": "If this model did not move during activation it gains +1 Defense Die."
+    },
+    {
+      "id": "predator-config",
+      "name": "Predator Config",
+      "speedModifier": 0,
+      "armorModifier": -2,
+      "ability": "After this model has performed two actions, if it did not move during activation it may make a free Charge action."
+    },
+    {
+      "id": "enhanced-digitrade-manipulators",
+      "name": "Enhanced Digitrade Manipulators",
+      "speedModifier": 3,
+      "armorModifier": -2
+    },
+    {
+      "id": "field-repair-kit",
+      "name": "Field Repair Kit",
+      "speedModifier": -2,
+      "armorModifier": 0,
+      "ability": "Repair: Remove 1 repairable Critical Condition."
+    },
+    {
+      "id": "fire-suppression-system",
+      "name": "Fire Suppression System",
+      "speedModifier": 0,
+      "armorModifier": 0,
+      "ability": "FSS: Remove 1 Burn token from a friendly model within 5 inches."
+    },
+    {
+      "id": "coordinator-drone",
+      "name": "Coordinator Drone",
+      "speedModifier": -2,
+      "armorModifier": 0,
+      "ability": "Place a friendly Drone token/model entirely within 8 inches of the MCV. The Drone may move and is considered 8 inches tall for LoS.",
+      "droneProfile": {
+        "speed": 10,
+        "defense": "4",
+        "armor": "6+"
+      },
+      "source": {
+        "errataOverride": true
+      }
+    },
+    {
+      "id": "hd-shield-boost-kit",
+      "name": "Hd Shield Boost-Kit",
+      "speedModifier": 0,
+      "armorModifier": -2,
+      "ability": "Boost Shields: Ammo 1. Add +3 Defense Dice to the next attack against this model."
+    },
+    {
+      "id": "emergency-hull-repair-foam",
+      "name": "Emergency Hull Repair Foam",
+      "speedModifier": -1,
+      "armorModifier": 0,
+      "ability": "Repair Foam: Restore 4 Armor (1 use)."
+    }
+  ],
+  "mcvWeapons": [
+    {
+      "id": "lasr-armament",
+      "name": "LASR Armament",
+      "slot": "equipment",
+      "threat": 6,
+      "range": 12,
+      "aoe": null,
+      "targetNumber": 5,
+      "damage": 1,
+      "ammo": 3,
+      "keywords": [
+        "Burn 1",
+        "Energy",
+        "Mounted"
+      ],
+      "source": {
+        "mountedFromErrata": true
+      }
+    },
+    {
+      "id": "em-c-net-launcher",
+      "name": "EM-C Net Launcher",
+      "slot": "equipment",
+      "threat": 6,
+      "range": 10,
+      "aoe": null,
+      "targetNumber": 5,
+      "damage": 0,
+      "ammo": 2,
+      "keywords": [
+        "Limited Range",
+        "Tie-Down",
+        "Mounted"
+      ],
+      "source": {
+        "mountedFromErrata": true
+      }
+    },
+    {
+      "id": "infrared-array-missile-pod",
+      "name": "Infrared Array Missile Pod",
+      "slot": "equipment",
+      "threat": 7,
+      "range": 36,
+      "aoe": 1,
+      "targetNumber": 5,
+      "damage": 2,
+      "ammo": 1,
+      "keywords": [
+        "Coordinated",
+        "Devastating Effect",
+        "Anti: Energy",
+        "Explosive",
+        "Mounted"
+      ],
+      "source": {
+        "mountedFromErrata": true
+      }
+    },
+    {
+      "id": "mounted-lmg",
+      "name": "Mounted LMG",
+      "slot": "equipment",
+      "threat": 3,
+      "range": 36,
+      "aoe": null,
+      "targetNumber": 6,
+      "damage": 2,
+      "ammo": null,
+      "keywords": [
+        "Anti: Infantry",
+        "Hard Case",
+        "Mounted"
+      ],
+      "source": {
+        "mountedFromErrata": true
+      }
+    },
+    {
+      "id": "gauss-cannon",
+      "name": "Gauss Cannon",
+      "slot": "primary",
+      "threat": 8,
+      "range": 36,
+      "aoe": null,
+      "targetNumber": 5,
+      "damage": 3,
+      "ammo": null,
+      "keywords": [
+        "Pierce 2",
+        "Pushback",
+        "Energy",
+        "Reload 2"
+      ],
+      "source": {
+        "reloadFromErrata": true
+      }
+    },
+    {
+      "id": "incendiary-displacer",
+      "name": "Incendiary Displacer",
+      "slot": "primary",
+      "threat": 5,
+      "range": 8,
+      "aoe": 2,
+      "targetNumber": 6,
+      "damage": 2,
+      "ammo": null,
+      "keywords": [
+        "Burn 1",
+        "Energy",
+        "Anti: Explosive",
+        "Limited Range"
+      ]
+    },
+    {
+      "id": "frag-grenade-launcher",
+      "name": "Frag Grenade Launcher",
+      "slot": "primary",
+      "threat": 6,
+      "range": 10,
+      "aoe": 2,
+      "targetNumber": 5,
+      "damage": 2,
+      "ammo": null,
+      "keywords": [
+        "Anti: Hard Case",
+        "Bounce 1",
+        "Explosive"
+      ]
+    },
+    {
+      "id": "hv-li-missile-launcher",
+      "name": "HV-LI Missile Launcher",
+      "slot": "primary",
+      "threat": 7,
+      "range": 36,
+      "aoe": 2,
+      "targetNumber": 6,
+      "damage": 2,
+      "ammo": 2,
+      "keywords": [
+        "Coordinated",
+        "Devastating Effect",
+        "Explosive"
+      ]
+    },
+    {
+      "id": "oc-55-machine-gun",
+      "name": "OC-55 Machine Gun",
+      "slot": "primary",
+      "threat": 5,
+      "range": 36,
+      "aoe": null,
+      "targetNumber": 5,
+      "damage": 2,
+      "ammo": null,
+      "keywords": [
+        "Anti: Explosive",
+        "Hard Case"
+      ]
+    },
+    {
+      "id": "lb-5-death-adder",
+      "name": "LB-5 Death Adder",
+      "slot": "primary",
+      "threat": 8,
+      "range": 24,
+      "aoe": null,
+      "targetNumber": 5,
+      "damage": 2,
+      "ammo": null,
+      "keywords": [
+        "Anti: Infantry",
+        "Surge: MCV",
+        "Devastating Effect",
+        "Hard Case"
+      ]
+    },
+    {
+      "id": "pneumatic-sidearm",
+      "name": "Pneumatic Sidearm",
+      "slot": "sidearm",
+      "threat": 1,
+      "range": 12,
+      "aoe": null,
+      "targetNumber": 6,
+      "damage": 1,
+      "ammo": null,
+      "keywords": [
+        "Hard Case"
+      ]
+    },
+    {
+      "id": "riot-tonfa",
+      "name": "Riot Tonfa",
+      "slot": "sidearm",
+      "threat": 2,
+      "range": 1,
+      "aoe": null,
+      "targetNumber": 4,
+      "damage": 1,
+      "ammo": null,
+      "keywords": [
+        "Pushback",
+        "Anti: Infantry",
+        "Melee"
+      ]
+    },
+    {
+      "id": "long-melee",
+      "name": "Long Melee",
+      "slot": "sidearm",
+      "threat": 3,
+      "range": 4,
+      "aoe": null,
+      "targetNumber": 2,
+      "damage": 1,
+      "ammo": null,
+      "keywords": [
+        "Anti: Infantry",
+        "Pierce",
+        "Melee"
+      ]
+    },
+    {
+      "id": "heavy-melee",
+      "name": "Heavy Melee",
+      "slot": "sidearm",
+      "threat": 4,
+      "range": 2,
+      "aoe": null,
+      "targetNumber": 3,
+      "damage": 2,
+      "ammo": null,
+      "keywords": [
+        "Anti: Infantry",
+        "Pierce",
+        "Pushback",
+        "Melee"
+      ]
+    },
+    {
+      "id": "light-melee",
+      "name": "Light Melee",
+      "slot": "sidearm",
+      "threat": 2,
+      "range": 1,
+      "aoe": null,
+      "targetNumber": 3,
+      "damage": 2,
+      "ammo": null,
+      "keywords": [
+        "Anti: Infantry",
+        "Pierce",
+        "Melee"
+      ]
+    }
+  ],
+  "infantryWeapons": [
+    {
+      "id": "warthog-machine-gun",
+      "name": "Warthog Machine Gun",
+      "range": 24,
+      "aoe": null,
+      "targetNumber": 3,
+      "damage": 1,
+      "ammo": null,
+      "keywords": [
+        "Devastating Effect"
+      ]
+    },
+    {
+      "id": "combat-rifle",
+      "name": "Combat Rifle",
+      "range": 24,
+      "aoe": null,
+      "targetNumber": 4,
+      "damage": 1,
+      "ammo": null,
+      "keywords": [
+        "Anti: Infantry"
+      ]
+    },
+    {
+      "id": "smg",
+      "name": "SMG",
+      "range": 10,
+      "aoe": null,
+      "targetNumber": 4,
+      "damage": 1,
+      "ammo": null,
+      "keywords": [
+        "Anti: Infantry",
+        "Limited Range"
+      ]
+    },
+    {
+      "id": "anti-materiel-rifle",
+      "name": "Anti Materiel Rifle",
+      "range": 36,
+      "aoe": null,
+      "targetNumber": 5,
+      "damage": 2,
+      "ammo": null,
+      "keywords": [
+        "Anti: MCV",
+        "Anti: Explosive"
+      ]
+    },
+    {
+      "id": "rubicon-hm-launcher",
+      "name": "Rubicon HM Launcher",
+      "range": 10,
+      "aoe": 2,
+      "targetNumber": 5,
+      "damage": 2,
+      "ammo": null,
+      "keywords": [
+        "Pushback",
+        "Bounce 1",
+        "Limited Range"
+      ]
+    },
+    {
+      "id": "auto-pistol",
+      "name": "Auto Pistol",
+      "range": 16,
+      "aoe": null,
+      "targetNumber": 4,
+      "damage": 1,
+      "ammo": null,
+      "keywords": [
+        "Reroll 1",
+        "Limited Range"
+      ]
+    },
+    {
+      "id": "pistol",
+      "name": "Pistol",
+      "range": 16,
+      "aoe": null,
+      "targetNumber": 4,
+      "damage": 1,
+      "ammo": null,
+      "keywords": []
+    },
+    {
+      "id": "bouncy-grenade",
+      "name": "Bouncy Grenade",
+      "range": 8,
+      "aoe": 1,
+      "targetNumber": 5,
+      "damage": 2,
+      "ammo": null,
+      "keywords": [
+        "Throw",
+        "Bounce 2",
+        "Devastating Effect",
+        "Limited Range"
+      ]
+    },
+    {
+      "id": "grenade",
+      "name": "Grenade",
+      "range": 8,
+      "aoe": 2,
+      "targetNumber": 5,
+      "damage": 2,
+      "ammo": null,
+      "keywords": [
+        "Throw",
+        "Bounce 1",
+        "Limited Range"
+      ]
+    },
+    {
+      "id": "sticky-grenade",
+      "name": "Sticky Grenade",
+      "range": 8,
+      "aoe": 1,
+      "targetNumber": 4,
+      "damage": 3,
+      "ammo": null,
+      "keywords": [
+        "Throw",
+        "Devastating Effect",
+        "Limited Range"
+      ]
+    },
+    {
+      "id": "smoke-grenade",
+      "name": "Smoke Grenade",
+      "range": 8,
+      "aoe": 2,
+      "targetNumber": null,
+      "damage": 0,
+      "ammo": null,
+      "keywords": [
+        "Bounce 1",
+        "Limited Range",
+        "Smoke"
+      ],
+      "source": {
+        "smokeFromErrata": true
+      }
+    },
+    {
+      "id": "basic-melee-weapon",
+      "name": "Basic Melee Weapon",
+      "range": 1,
+      "aoe": null,
+      "targetNumber": 3,
+      "damage": 1,
+      "ammo": null,
+      "keywords": [
+        "Melee"
+      ]
+    },
+    {
+      "id": "tactical-bow",
+      "name": "Tactical Bow",
+      "status": "official",
+      "range": 24,
+      "aoe": null,
+      "targetNumber": 2,
+      "damage": 1,
+      "ammo": null,
+      "keywords": [
+        "Hard Case",
+        "Pierce 1",
+        "Limited Range"
+      ],
+      "source": {
+        "gstProfileId": "8427-feb7-60c6-15e4",
+        "authority": "official-supplement",
+        "supplementCitation": "pending",
+        "currentDataBasis": "GST transcription pending supplement verification"
+      }
+    }
+  ],
+  "infantryUnits": [
+    {
+      "id": "freelancer",
+      "name": "Freelancer",
+      "status": "official",
+      "type": "grunt",
+      "threat": 1,
+      "speed": 5,
+      "defense": "5+",
+      "armor": 1,
+      "tactics": 1,
+      "weapons": [
+        "combat-rifle"
+      ],
+      "abilities": []
+    },
+    {
+      "id": "rifleman",
+      "name": "Rifleman",
+      "status": "official",
+      "type": "specialist",
+      "threat": 5,
+      "speed": 6,
+      "defense": "5+",
+      "armor": 2,
+      "tactics": 2,
+      "weapons": [
+        "combat-rifle",
+        "grenade"
+      ],
+      "abilities": [
+        "When an enemy infantry model takes a hit from this model, the target also receives a Knocked Down token; damage is not required."
+      ]
+    },
+    {
+      "id": "marksman",
+      "name": "Marksman",
+      "status": "official",
+      "type": "specialist",
+      "threat": 5,
+      "speed": 6,
+      "defense": "4+",
+      "armor": 2,
+      "tactics": 3,
+      "weapons": [
+        "combat-rifle"
+      ],
+      "abilities": [
+        "If this model has not attacked this round, it may make one free attack action to any model in LoS at any time."
+      ]
+    },
+    {
+      "id": "rampart",
+      "name": "Rampart",
+      "status": "official",
+      "type": "specialist",
+      "threat": 5,
+      "speed": 5,
+      "defense": "4+",
+      "armor": 2,
+      "tactics": 2,
+      "weapons": [
+        "pistol",
+        "grenade"
+      ],
+      "abilities": [
+        "Deploy Shield Wall: Place a shield wall template completely within 5 inches. It is Heavy Cover. Remove it at the end of the round and before this unit uses Deploy Shield Wall again."
+      ]
+    },
+    {
+      "id": "trauma-medic",
+      "name": "Trauma Medic",
+      "status": "official",
+      "type": "specialist",
+      "threat": 5,
+      "speed": 6,
+      "defense": "5+",
+      "armor": 1,
+      "tactics": 3,
+      "weapons": [
+        "smg"
+      ],
+      "abilities": [
+        "Combat Stims: Remove Downed tokens from other friendly Infantry models within 3 inches."
+      ]
+    },
+    {
+      "id": "heavy-weapons-specialist",
+      "name": "Heavy Weapons Specialist",
+      "status": "official",
+      "type": "specialist",
+      "threat": 4,
+      "speed": 5,
+      "defense": "5+",
+      "armor": 2,
+      "tactics": 2,
+      "weaponChoice": {
+        "min": 1,
+        "max": 1,
+        "options": [
+          "warthog-machine-gun",
+          "rubicon-hm-launcher"
+        ]
+      },
+      "abilities": [
+        "Slammer: Ammo 3. Ranged Attack, Explosive. Requires another friendly unit to have LoS and range. Ranged Attack: 6 dice, Target Number 3+, Damage 2."
+      ],
+      "source": {
+        "errataWeaponChoice": true
+      }
+    },
+    {
+      "id": "field-engineer",
+      "name": "Field Engineer",
+      "status": "official",
+      "type": "specialist",
+      "threat": 6,
+      "speed": 4,
+      "defense": "4+",
+      "armor": 3,
+      "tactics": 3,
+      "weapons": [
+        "pistol",
+        "sticky-grenade"
+      ],
+      "abilities": [
+        "Laser Guidance: Call in one Orbital Ordnance."
+      ]
+    },
+    {
+      "id": "infiltrator",
+      "name": "Infiltrator",
+      "status": "official",
+      "type": "specialist",
+      "threat": 4,
+      "speed": 6,
+      "defense": "3+",
+      "armor": 1,
+      "tactics": 3,
+      "weapons": [
+        "smg",
+        "sticky-grenade"
+      ],
+      "abilities": [
+        "Any attack targeting this model rolls only 3 dice."
+      ]
+    },
+    {
+      "id": "forward-observer",
+      "name": "Forward Observer",
+      "status": "official",
+      "type": "specialist",
+      "threat": 4,
+      "speed": 7,
+      "defense": "4+",
+      "armor": 2,
+      "tactics": 3,
+      "weapons": [
+        "smg",
+        "smoke-grenade"
+      ],
+      "abilities": [
+        "Units deployed within 8 inches of this model gain +1 cover until they are activated."
+      ]
+    },
+    {
+      "id": "sniper",
+      "name": "Sniper",
+      "status": "official",
+      "type": "specialist",
+      "threat": 5,
+      "speed": 6,
+      "defense": "5+",
+      "armor": 1,
+      "tactics": 3,
+      "weapons": [
+        "anti-materiel-rifle"
+      ],
+      "abilities": [
+        "Once per round deal 1 damage to any model within LoS and Limited Range."
+      ]
+    },
+    {
+      "id": "hacker",
+      "name": "Hacker",
+      "status": "official",
+      "type": "specialist",
+      "threat": 5,
+      "speed": 6,
+      "defense": "4+",
+      "armor": 2,
+      "tactics": 4,
+      "weapons": [
+        "smg",
+        "bouncy-grenade"
+      ],
+      "abilities": [
+        "Signal Jammer: Place a signal jammer token within 10 inches; orbital ordnance and Ingress deployment cannot happen within 8 inches of the token. Any player may spend an action and pass Tactics 10 to remove it."
+      ]
+    },
+    {
+      "id": "field-mechanic",
+      "name": "Field Mechanic",
+      "status": "official",
+      "type": "specialist",
+      "threat": 5,
+      "speed": 6,
+      "defense": "3+",
+      "armor": 2,
+      "tactics": 4,
+      "weapons": [
+        "pistol",
+        "grenade"
+      ],
+      "abilities": [
+        "Repair: If within 3 inches of a friendly MCV, repair 1 Critical Condition marked with an asterisk."
+      ]
+    },
+    {
+      "id": "green-pilot",
+      "name": "Green Pilot",
+      "status": "official",
+      "type": "pilot",
+      "threat": 3,
+      "speed": 5,
+      "defense": "5+",
+      "armor": 2,
+      "tactics": 2,
+      "weapons": [
+        "auto-pistol"
+      ],
+      "abilities": [
+        "Grapple Hook: Place this model at any point it can balance within LoS and 10 inches."
+      ],
+      "experience": "green"
+    },
+    {
+      "id": "experienced-pilot",
+      "name": "Experienced Pilot",
+      "status": "official",
+      "type": "pilot",
+      "threat": 5,
+      "speed": 6,
+      "defense": "4+",
+      "armor": 2,
+      "tactics": 3,
+      "weapons": [
+        "smg"
+      ],
+      "abilities": [
+        "Grapple Hook: Place this model at any point it can balance within LoS and 10 inches."
+      ],
+      "experience": "experienced"
+    },
+    {
+      "id": "veteran-pilot",
+      "name": "Veteran Pilot",
+      "status": "official",
+      "type": "pilot",
+      "threat": 8,
+      "speed": 6,
+      "defense": "3+",
+      "armor": 2,
+      "tactics": 4,
+      "weapons": [
+        "combat-rifle"
+      ],
+      "abilities": [
+        "Advanced Grapple Hook: Place this model at any point it can balance, or mount a Null MCV, within LoS and 10 inches."
+      ],
+      "experience": "veteran"
+    },
+    {
+      "id": "vanguard-specialist",
+      "name": "Vanguard",
+      "status": "official",
+      "type": "specialist",
+      "threat": 10,
+      "speed": 8,
+      "defense": "3+",
+      "armor": 3,
+      "tactics": 4,
+      "weapons": [],
+      "abilities": [
+        "Select an existing Specialist profile for weapon and first ability, then roll a D10 for second ability."
+      ],
+      "max": 1,
+      "rosterEffects": {
+        "specialistMaxDelta": -1
+      },
+      "source": {
+        "gstSelectionId": "9418-4276-4433-45f7",
+        "gstProfileId": "4268-5e04-e4eb-e693",
+        "authority": "official-supplement",
+        "supplementCitation": "pending"
+      }
+    },
+    {
+      "id": "hunter",
+      "name": "Hunter",
+      "status": "official",
+      "type": "specialist",
+      "threat": 4,
+      "speed": 5,
+      "defense": "5+",
+      "armor": 1,
+      "tactics": 2,
+      "weapons": [
+        "tactical-bow"
+      ],
+      "abilities": [
+        "Marked: After wounding an enemy model, that model gains a Marked token. A model with a Marked token does not get a defense bonus when in light cover."
+      ],
+      "source": {
+        "gstSelectionId": "7f27-ebe6-5113-b68e",
+        "gstProfileId": "42d9-f03f-6118-2d6a",
+        "authority": "official-supplement",
+        "supplementCitation": "pending"
+      }
+    }
+  ],
+  "backupMCVs": [
+    {
+      "id": "machete",
+      "name": "Machete",
+      "status": "official",
+      "threat": 15,
+      "speed": 8,
+      "defense": "5+",
+      "armor": 8,
+      "actions": 2,
+      "weapons": [
+        "incendiary-displacer",
+        "light-melee"
+      ],
+      "equipment": [
+        "mounted-lmg",
+        "field-repair-kit"
+      ],
+      "rosterEffects": {
+        "infantryMax": 8,
+        "specialistMax": 3
+      },
+      "source": {
+        "rulebookPage": 28,
+        "gstSelectionId": "ed5f-57b8-d30e-b598",
+        "gstProfileId": "d085-72c0-6694-d952"
+      }
+    }
+  ],
+  "orbitalOrdnance": [
+    {
+      "id": "field-sweeper",
+      "name": "Field Sweeper",
+      "status": "official",
+      "threat": 5,
+      "uses": 1,
+      "effect": "Place a target token and choose a point on any table edge. Draw a line; qualifying models within 1 inch are attacked with 5 dice, TN 4+, Damage 3."
+    },
+    {
+      "id": "airburst-strike",
+      "name": "Airburst Strike",
+      "status": "official",
+      "threat": 5,
+      "uses": 1,
+      "effect": "Caller passes Tactics 6. During the following Ingress Phase enemy infantry pass Tactics 9 after placement or deploy Knocked Down; caller later passes Tactics 6 or the strike ends."
+    },
+    {
+      "id": "needle-swarm",
+      "name": "Needle Swarm",
+      "status": "official",
+      "threat": 5,
+      "uses": 1,
+      "effect": "Infantry within 6 inches of target token and not protected from above suffer 3 Hits, Damage 1."
+    },
+    {
+      "id": "smoke-barrage",
+      "name": "Smoke Barrage",
+      "status": "official",
+      "threat": 5,
+      "uses": 1,
+      "effect": "Drop three 4-inch smoke tokens within Limited Range and LoS."
+    },
+    {
+      "id": "h-a-laser-strike",
+      "name": "H-A-Laser Strike",
+      "status": "official",
+      "threat": 5,
+      "uses": 1,
+      "effect": "Requires three models to have LoS to the target, including the caller. Attack Dice 4, TN 4+, AoE 3 inches, Damage 2, Burn 1."
+    },
+    {
+      "id": "cluster-barrage",
+      "name": "Cluster Barrage",
+      "status": "official",
+      "threat": 5,
+      "uses": 1,
+      "effect": "Place a target marker within RNG and LoS. Four grenades bounce from the targeted spot; resolve each using the Grenade statline."
+    },
+    {
+      "id": "precision-strike",
+      "name": "Precision Strike",
+      "status": "official",
+      "threat": 5,
+      "uses": 1,
+      "effect": "Target one enemy model within RNG and LoS. Attack Dice 3, TN 4+, Damage 3, Pierce 2, Devastating Effect."
+    }
+  ],
+  "validationRules": [
+    {
+      "id": "one-sponsor",
+      "severity": "error",
+      "test": "corporateClient.count == 1",
+      "message": "Select exactly one Corporate Client."
+    },
+    {
+      "id": "one-main-mcv",
+      "severity": "error",
+      "test": "mainMCV.count == 1",
+      "message": "Select exactly one main MCV."
+    },
+    {
+      "id": "pilot-count",
+      "severity": "error",
+      "test": "pilot.count >= 1 && pilot.count <= 2",
+      "message": "A Fireteam must contain 1–2 Pilots."
+    },
+    {
+      "id": "infantry-cap",
+      "severity": "error",
+      "test": "infantry.count <= effectiveInfantryMax",
+      "message": "Too many Infantry for this Fireteam."
+    },
+    {
+      "id": "specialist-cap",
+      "severity": "error",
+      "test": "specialist.count <= effectiveSpecialistMax",
+      "message": "Too many Specialists for this Fireteam."
+    },
+    {
+      "id": "specialist-type-cap",
+      "severity": "error",
+      "test": "eachSpecialistType.count <= effectiveTypeMax",
+      "message": "Too many copies of this Specialist type."
+    },
+    {
+      "id": "mcv-profile-required",
+      "severity": "error",
+      "test": "mcv.profile.count == 1",
+      "message": "Choose an MCV Profile."
+    },
+    {
+      "id": "mcv-pilot-required",
+      "severity": "error",
+      "test": "mcv.pilotExperience.count == 1",
+      "message": "Choose Pilot Experience."
+    },
+    {
+      "id": "mcv-component-required",
+      "severity": "error",
+      "test": "mcv.integratedComponent.count == 1",
+      "message": "Choose one Integrated Component."
+    },
+    {
+      "id": "mcv-shield-required",
+      "severity": "error",
+      "test": "mcv.shield.count == 1",
+      "message": "Choose one Shield."
+    },
+    {
+      "id": "mcv-sidearm-required",
+      "severity": "error",
+      "test": "mcv.sidearm.count == 1",
+      "message": "Choose one Sidearm."
+    },
+    {
+      "id": "primary-cap",
+      "severity": "error",
+      "test": "mcv.primaryWeapons.count <= effectivePrimaryWeaponMax",
+      "message": "Too many Primary Weapons for this Pilot Experience."
+    },
+    {
+      "id": "unique-primary",
+      "severity": "error",
+      "test": "mcv.primaryWeapons.areUnique",
+      "message": "An MCV cannot take duplicate Primary Weapons."
+    },
+    {
+      "id": "equipment-cap",
+      "severity": "error",
+      "test": "mcv.allEquipmentSelections.count <= effectiveEquipmentMax",
+      "message": "Too many total MCV Equipment selections for this Pilot Experience."
+    },
+    {
+      "id": "unique-equipment",
+      "severity": "error",
+      "test": "mcv.allEquipmentSelections.areUnique",
+      "message": "All MCV Equipment selections must be unique."
+    },
+    {
+      "id": "ordnance-cap",
+      "severity": "error",
+      "test": "orbitalOrdnance.count <= effectiveOrdnanceMax",
+      "message": "Too many Orbital Ordnance selections."
+    },
+    {
+      "id": "threat-cap",
+      "severity": "error",
+      "test": "threat.total <= threat.limit",
+      "message": "Fireteam exceeds the agreed Threat limit."
+    }
+  ],
+  "communityGST": {
+    "gameSystemId": "sys-59d2-19e2-bf22-6c5a",
+    "revision": 6,
+    "defaultThreatLimit": 50,
+    "knownCategoryIds": {
+      "pilot": "879b-8f9a-ae98-a786",
+      "mcv": "cb50-90ce-9be4-2f22",
+      "infantry": "35e7-213a-b6bf-b25e",
+      "specialist": "906c-ecec-1d26-7cc4",
+      "corporateSponsor": "63d9-299c-b737-45cb",
+      "mcvPrimary": "0b89-5cad-68ed-5fd0",
+      "equipment": "b17c-cff8-d957-f0bc",
+      "orbitalOrdnance": "064f-0890-b383-1e8f",
+      "backupMCV": "7407-43d7-ec8c-ba74"
+    },
+    "observedRules": {
+      "pilotMin": 1,
+      "pilotMax": 2,
+      "mcvMin": 1,
+      "mcvMax": 1,
+      "infantryMax": 12,
+      "specialistMax": 7,
+      "primaryWeaponMax": 2,
+      "equipmentMax": 3,
+      "orbitalOrdnanceMax": 1,
+      "backupMCVMax": 1,
+      "equipmentCounting": "The GST Equipment category includes both chassis equipment and MCV Equipment weapons."
+    }
+  },
+  "officialSupplementContent": {
+    "citationStatus": "pending",
+    "items": [
+      {
+        "type": "corporateClient",
+        "id": "qpid-llc"
+      },
+      {
+        "type": "corporateClient",
+        "id": "vdey-technologies"
+      },
+      {
+        "type": "specialist",
+        "id": "vanguard-specialist"
+      },
+      {
+        "type": "specialist",
+        "id": "hunter"
+      }
+    ],
+    "dependentData": [
+      {
+        "type": "weapon",
+        "id": "tactical-bow",
+        "note": "Used by Hunter and QPID LLC; current stats retained from GST pending supplement verification."
+      }
+    ]
+  }
+}

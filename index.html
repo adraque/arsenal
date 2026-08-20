@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Arsenal Fireteam Builder</title>
+  <meta name="description" content="A client-side Arsenal fireteam builder designed for GitHub Pages.">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="app-header">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">A</div>
+      <div>
+        <div class="eyebrow">ARSENAL</div>
+        <h1>Fireteam Builder</h1>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <button class="button secondary" id="newListBtn" type="button">New</button>
+      <button class="button secondary" id="saveListBtn" type="button">Save</button>
+      <button class="button secondary" id="manageBtn" type="button">Import / Export</button>
+    </div>
+  </header>
+
+  <main class="app-shell">
+    <section class="list-meta">
+      <label class="field operation-field">
+        <span>Operation</span>
+        <input id="operationName" type="text" value="Untitled Operation" maxlength="80">
+      </label>
+
+      <label class="field threat-field">
+        <span>Threat Limit</span>
+        <input id="threatLimit" type="number" min="1" step="1" value="50">
+      </label>
+
+      <div class="status-card" id="statusCard" aria-live="polite">
+        <div>
+          <span class="status-label">Threat</span>
+          <strong id="threatStatus">0 / 50</strong>
+        </div>
+        <div class="status-pill" id="legalStatus">Incomplete</div>
+      </div>
+    </section>
+
+    <nav class="mode-tabs" aria-label="Builder mode">
+      <button class="mode-tab active" data-mode="build" type="button">Build</button>
+      <button class="mode-tab" data-mode="game" type="button">Game</button>
+      <button class="mode-tab mobile-only" data-mode="roster" type="button">Fireteam</button>
+    </nav>
+
+    <section class="builder-grid" id="buildMode">
+      <aside class="catalog-panel">
+        <div class="panel-heading">
+          <div>
+            <div class="eyebrow">AVAILABLE</div>
+            <h2>Contract Assets</h2>
+          </div>
+          <input id="catalogSearch" class="search" type="search" placeholder="Search units">
+        </div>
+
+        <div class="catalog-tabs" id="catalogTabs">
+          <button class="catalog-tab active" data-tab="infantry" type="button">Infantry</button>
+          <button class="catalog-tab" data-tab="mcv" type="button">MCV</button>
+          <button class="catalog-tab" data-tab="ordnance" type="button">Ordnance</button>
+        </div>
+
+        <div id="catalogContent"></div>
+      </aside>
+
+      <section class="roster-panel" id="rosterPanel">
+        <div class="panel-heading sticky">
+          <div>
+            <div class="eyebrow">ACTIVE FIRETEAM</div>
+            <h2 id="rosterTitle">Untitled Operation</h2>
+          </div>
+          <div class="remaining" id="remainingThreat">50 TH remaining</div>
+        </div>
+
+        <div class="validation-box" id="validationBox"></div>
+
+        <div class="roster-section">
+          <div class="section-title">
+            <h3>Corporate Client</h3>
+            <span>1 required</span>
+          </div>
+          <div id="sponsorSelection"></div>
+        </div>
+
+        <div class="roster-section">
+          <div class="section-title">
+            <h3>Main MCV</h3>
+            <span>configure chassis & loadout</span>
+          </div>
+          <div id="mcvBuilder"></div>
+        </div>
+
+        <div class="roster-section">
+          <div class="section-title">
+            <h3>Infantry</h3>
+            <span id="infantryCounter">0 / 12</span>
+          </div>
+          <div id="rosterInfantry"></div>
+        </div>
+
+        <div class="roster-section">
+          <div class="section-title">
+            <h3>Orbital Ordnance</h3>
+            <span id="ordnanceCounter">0 / 1</span>
+          </div>
+          <div id="rosterOrdnance"></div>
+        </div>
+
+        <div class="roster-section">
+          <div class="section-title">
+            <h3>Backup MCV</h3>
+            <span>optional</span>
+          </div>
+          <div id="backupMcv"></div>
+        </div>
+      </section>
+    </section>
+
+    <section id="gameMode" class="game-mode hidden">
+      <div class="game-toolbar">
+        <div>
+          <div class="eyebrow">TABLE MODE</div>
+          <h2 id="gameTitle">Untitled Operation</h2>
+        </div>
+        <button id="resetGameStateBtn" class="button secondary" type="button">Reset Game State</button>
+      </div>
+      <div id="gameCards" class="game-grid"></div>
+    </section>
+
+    <section id="savedListsView" class="saved-lists hidden"></section>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <dialog id="manageDialog">
+    <div class="dialog-header">
+      <div>
+        <div class="eyebrow">LIST TOOLS</div>
+        <h2>Import / Export</h2>
+      </div>
+      <button id="closeManageBtn" class="icon-button" type="button" aria-label="Close">×</button>
+    </div>
+
+    <div class="dialog-grid">
+      <section>
+        <h3>Export</h3>
+        <p>Our native JSON is the lossless format. Text is convenient for Discord or messages.</p>
+        <div class="dialog-actions">
+          <button id="exportJsonBtn" class="button primary" type="button">Download JSON</button>
+          <button id="exportTextBtn" class="button secondary" type="button">Download Text</button>
+        </div>
+      </section>
+
+      <section>
+        <h3>Import</h3>
+        <p>Import an Arsenal Builder JSON roster. It opens as a new Fireteam after validation.</p>
+        <label class="file-drop">
+          <span>Choose roster file</span>
+          <input id="importFile" type="file" accept=".json,application/json">
+        </label>
+        <div id="importPreview" class="import-preview"></div>
+      </section>
+
+      <section class="future-box">
+        <h3>New Recruit</h3>
+        <p>.rosz import/export is intentionally reserved for the adapter layer. The roster schema already preserves the structure needed for round-trip mapping.</p>
+        <span class="future-badge">Planned compatibility</span>
+      </section>
+    </div>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>
