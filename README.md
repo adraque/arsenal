@@ -1,12 +1,13 @@
-# Arsenal Fireteam Builder — Top Stripe Edge Fix
+# Arsenal Fireteam Builder — Responsive Stripe Fade
 
-Built directly from the top stripe mask version.
+Built directly from the latest working builder.
 
-Only the top-right banner was adjusted:
+Responsive stripe change only:
 
-- The stripe layer now overscans 34px past the right edge.
-- The header clips that overscan.
-- This lets the final diagonal stripe finish naturally instead of being cut off mid-band.
-- The 55-degree mask and stripe angle remain matched.
+- Removed diagonal clipping from the top-right header stripe field.
+- Removed diagonal clipping from BUILD / Contract Assets.
+- Hazard stripes keep their top-left to bottom-right angle.
+- Each stripe field now fades smoothly from 0 opacity on the left to full visibility on the right.
+- The fade is percentage-based within the stripe box, so it remains stable across desktop, resized windows, and mobile screens.
 
-No other layout, styling, roster, or validation behavior changed.
+No roster rules, validation, builder controls, MCV layout, or other styling were changed.

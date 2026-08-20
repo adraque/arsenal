@@ -57,14 +57,14 @@ button { cursor: pointer; }
 .app-header::after {
   content: "";
   position: absolute;
-  right: -34px;
+  right: 0;
   top: 0;
-  width: calc(34% + 34px);
+  width: 38%;
   height: 100%;
   opacity: .26;
   background: repeating-linear-gradient(55deg, transparent 0 16px, #fff 16px 27px);
-  -webkit-mask-image: linear-gradient(55deg, transparent 0 22%, #000 22%);
-  mask-image: linear-gradient(55deg, transparent 0 22%, #000 22%);
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 72%, #000 100%);
+  mask-image: linear-gradient(to right, transparent 0%, #000 72%, #000 100%);
   pointer-events: none;
 }
 .brand, .header-actions { position: relative; z-index: 1; }
@@ -167,13 +167,14 @@ h3 { margin-bottom: 0; font-size: .96rem; letter-spacing: .035em; text-transform
 .panel-heading::after {
   content:"";
   position:absolute;
-  right:-18px;
-  top:-18px;
-  width:42%;
-  height:calc(100% + 36px);
+  right:0;
+  top:0;
+  width:40%;
+  height:100%;
   opacity:.6;
   background:repeating-linear-gradient(55deg, transparent 0 12px, #c5cbca 12px 23px);
-  clip-path:polygon(0 0, 100% 0, 100% 100%, 24% 100%);
+  -webkit-mask-image:linear-gradient(to right, transparent 0%, #000 72%, #000 100%);
+  mask-image:linear-gradient(to right, transparent 0%, #000 72%, #000 100%);
   pointer-events:none;
 }
 .panel-heading > * { position:relative; z-index:1; }
