@@ -658,7 +658,9 @@ function mcvChoiceCard({item, selected, mode, action, field = "", detail = [], c
         ${detail.map((line, index) => `<div class="mcv-choice-detail ${index === 0 ? "primary-detail" : ""}">${escapeHtml(line)}</div>`).join("")}
       </div>
       <div class="mcv-choice-side">
-        ${cost != null ? `<span class="entry-cost">${escapeHtml(cost)}</span>` : ""}
+        <div class="mcv-choice-cost-slot">
+          ${cost != null ? `<span class="entry-cost">${escapeHtml(cost)}</span>` : ""}
+        </div>
         <button class="choice-action ${additive ? "compact" : ""} ${selected ? "active" : ""}"
           data-action="${action}" ${field ? `data-field="${field}"` : ""} data-id="${item.id}" type="button" aria-label="${escapeHtml(buttonLabel)}">
           ${buttonText}
@@ -706,8 +708,19 @@ function renderSummary() {
     sections.push(`
       <section class="summary-section">
         <div class="summary-section-head"><h3>Backup MCV</h3><span>${b?.threat || 0}</span></div>
-        <div class="summary-primary">${escapeHtml(b?.name || state.roster.backupMCV)}</div>
-        <div class="summary-unit-detail">SPD ${b?.speed ?? "—"} · DEF ${b?.defense ?? "—"} · ARM ${b?.armor ?? "—"}</div>
+        <div class="summary-unit">
+          <div class="summary-unit-head">
+            <strong>${escapeHtml(b?.name || state.roster.backupMCV)}</strong>
+            <div class="summary-unit-actions">
+              <button class="summary-remove" data-action="summary-remove-backup"
+                type="button" title="Remove from Fireteam"
+                aria-label="Remove ${escapeHtml(b?.name || "Backup MCV")} from Fireteam">
+                ${trashIcon()}
+              </button>
+            </div>
+          </div>
+          <div class="summary-unit-detail">SPD ${b?.speed ?? "—"} · DEF ${b?.defense ?? "—"} · ARM ${b?.armor ?? "—"}</div>
+        </div>
       </section>
     `);
   }
@@ -763,7 +776,15 @@ function summaryUnitsSection(title, entries, counter) {
           <div class="summary-unit">
             <div class="summary-unit-head">
               <strong>${entry.quantity > 1 ? `${entry.quantity}× ` : ""}${escapeHtml(unit?.name || entry.unitId)}</strong>
-              <span class="threat-cost">${per * entry.quantity}</span>
+              <div class="summary-unit-actions">
+                <span class="threat-cost">${per * entry.quantity}</span>
+                <button class="summary-remove" data-action="summary-remove-unit"
+                  data-entry="${entry.entryId}" type="button"
+                  title="Remove from Fireteam"
+                  aria-label="Remove ${escapeHtml(unit?.name || entry.unitId)} from Fireteam">
+                  ${trashIcon()}
+                </button>
+              </div>
             </div>
             <div class="summary-unit-detail">
               ${weaponChoice ? `Weapon: ${escapeHtml(weaponChoice)}` : `SPD ${unit?.speed ?? "—"} · DEF ${unit?.defense ?? "—"} · ARM ${unit?.armor ?? "—"} · TAC ${unit?.tactics ?? "—"}`}
@@ -788,7 +809,15 @@ function summaryOrdnanceSection() {
           <div class="summary-unit">
             <div class="summary-unit-head">
               <strong>${escapeHtml(o?.name || id)}</strong>
-              <span class="threat-cost">${o?.threat || 0}</span>
+              <div class="summary-unit-actions">
+                <span class="threat-cost">${o?.threat || 0}</span>
+                <button class="summary-remove" data-action="summary-remove-ordnance"
+                  data-id="${id}" type="button"
+                  title="Remove from Fireteam"
+                  aria-label="Remove ${escapeHtml(o?.name || id)} from Fireteam">
+                  ${trashIcon()}
+                </button>
+              </div>
             </div>
           </div>
         `;
@@ -1137,6 +1166,12 @@ function summaryLine(label, value) {
   return `<div class="summary-line"><span>${escapeHtml(label)}</span><span class="value">${escapeHtml(value)}</span></div>`;
 }
 
+function trashIcon() {
+  return `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    <path d="M9 3h6l1 2h4v2H4V5h4l1-2Zm-2 6h10l-.7 11H7.7L7 9Zm3 2v7h2v-7h-2Zm4 0v7h2v-7h-2Z" fill="currentColor"/>
+  </svg>`;
+}
+
 function searchEmpty() {
   return `<div class="search-empty">No matching options in this section.</div>`;
 }
@@ -1188,6 +1223,13 @@ document.addEventListener("click", e => {
     state.roster.corporateClient = id;
   } else if (action === "toggle-ordnance") {
     toggleSelection(state.roster.orbitalOrdnance, id, effectiveLimits().ordnanceMax);
+  } else if (action === "summary-remove-unit") {
+    const entryId = actionEl.dataset.entry;
+    state.roster.infantry = state.roster.infantry.filter(x => x.entryId !== entryId);
+  } else if (action === "summary-remove-ordnance") {
+    state.roster.orbitalOrdnance = state.roster.orbitalOrdnance.filter(x => x !== id);
+  } else if (action === "summary-remove-backup") {
+    state.roster.backupMCV = null;
   } else if (action === "game-status") {
     const key = actionEl.dataset.key;
     state.gameState[key] = {...(state.gameState[key] || {}), status: actionEl.dataset.status};
