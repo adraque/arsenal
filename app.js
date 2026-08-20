@@ -663,13 +663,10 @@ function mcvChoiceCard({item, selected, mode, action, field = "", detail = [], c
         <button class="choice-action equipment-switch ${selected ? "active" : ""}"
           data-action="${action}" ${field ? `data-field="${field}"` : ""} data-id="${item.id}"
           type="button" aria-label="${escapeHtml(buttonLabel)}" aria-pressed="${selected ? "true" : "false"}">
-          <span class="switch-led" aria-hidden="true"></span>
           <span class="switch-track" aria-hidden="true">
-            <span class="switch-mark switch-mark-off">O</span>
             <span class="switch-thumb"></span>
-            <span class="switch-mark switch-mark-on">I</span>
           </span>
-          <span class="switch-state" aria-hidden="true">${selected ? "ON" : "OFF"}</span>
+          <span class="switch-led" aria-hidden="true"></span>
         </button>
       </div>
     </article>

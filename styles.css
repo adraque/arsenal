@@ -59,7 +59,7 @@ button { cursor: pointer; }
   position: absolute;
   right: 0;
   top: 0;
-  width: 38%;
+  width: 48%;
   height: 100%;
   opacity: .26;
   background: repeating-linear-gradient(55deg, transparent 0 16px, #fff 16px 27px);
@@ -169,7 +169,7 @@ h3 { margin-bottom: 0; font-size: .96rem; letter-spacing: .035em; text-transform
   position:absolute;
   right:0;
   top:0;
-  width:40%;
+  width:52%;
   height:100%;
   opacity:.6;
   background:repeating-linear-gradient(55deg, transparent 0 12px, #c5cbca 12px 23px);
@@ -436,7 +436,7 @@ dialog::backdrop { background:rgba(0,0,0,.72); }
   background: #252a2b;
   color: #c5c9c7;
   display: grid;
-  grid-template-columns: 7px 1fr 24px;
+  grid-template-columns: 1fr 12px;
   align-items: center;
   gap: 5px;
   font-family: ui-monospace, "Courier New", monospace;
@@ -587,4 +587,32 @@ dialog::backdrop { background:rgba(0,0,0,.72); }
   .clear-fireteam-button {
     width: 100%;
   }
+}
+
+
+/* Refined industrial switch: rocker + status lamp only */
+.equipment-switch .switch-led {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #565b59;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,.5);
+}
+
+.equipment-switch.active .switch-led {
+  background: var(--orange);
+  box-shadow:
+    0 0 7px rgba(248,155,0,.9),
+    inset 0 0 0 1px rgba(0,0,0,.3);
+}
+
+.equipment-switch .switch-mark,
+.equipment-switch .switch-state {
+  display:none;
+}
+
+.brand {
+  text-decoration:none;
+  color:inherit;
+  cursor:pointer;
 }
