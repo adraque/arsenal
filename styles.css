@@ -1171,3 +1171,29 @@ dialog::backdrop { background:rgba(0,0,0,.72); }
   color: var(--orange);
   padding: 0 4px;
 }
+
+
+/* ==========================================================
+   Dropdown + Active Fireteam scrolling fixes
+   ========================================================== */
+
+/*
+  The Current MCV sticky pass must not disable the summary panel's
+  original independent scroll behavior.
+*/
+@media (min-width: 981px) {
+  .summary-panel {
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    scrollbar-gutter: stable;
+    overscroll-behavior: contain;
+  }
+}
+
+/*
+  Keep native selects fully interactive. Their state is committed on
+  "change", not on the initial click that opens the browser dropdown.
+*/
+select {
+  pointer-events: auto;
+}

@@ -1364,6 +1364,11 @@ function escapeHtml(value) {
 }
 
 document.addEventListener("click", e => {
+  // Native selects are handled by the delegated "change" listener below.
+  // Do not rerender them on click or the browser popup is destroyed before
+  // the user can choose an option.
+  if (e.target.closest("select, option")) return;
+
   const actionEl = e.target.closest("[data-action]");
   if (!actionEl) return;
 

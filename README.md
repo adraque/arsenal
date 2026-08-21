@@ -1,12 +1,12 @@
-# Arsenal Builder — Sticky Current MCV Loadout Summary Pass
+# Arsenal Builder — Dropdown + Right Scroll Fix Pass
 
 Changes:
-- Removes the `Pilot-derived Armor, Actions and Tactics are applied in Game Mode
-  only while a Pilot is mounted.` message from the floating Current MCV panel.
-- Replaces that space with a compact, names-only live configuration summary.
-- The summary includes the selected MCV profile, integrated component, shield,
-  sidearm, primary weapons, and equipment.
-- Names are separated by small Arsenal-orange bullets to stay compact.
-- Current MCV Speed / Defense / Armor and sticky behavior remain unchanged.
+- Fixes native dropdowns closing immediately after opening.
+  The global click handler now ignores native SELECT/OPTION interactions;
+  those controls update only when their existing `change` handler fires.
+- Restores independent scrolling on the right-side Active Fireteam panel
+  when the roster is taller than the viewport.
+- Keeps the floating Current MCV behavior on the left unchanged.
 
-No roster rules, Pilot/Game Mode logic, exports, print behavior, or selection logic changed.
+No roster rules, validation, exports, print behavior, MCV removal,
+or MCV configuration logic changed.
