@@ -9,13 +9,13 @@
 </head>
 <body>
   <header class="app-header">
-    <div class="brand">
+    <a class="brand" href="https://www.electi-studio.com/blastervol07" target="_blank" rel="noopener noreferrer" aria-label="Open Arsenal in Blaster Volume 07 at Electi Studio">
       <img class="brand-mark" src="assets/arsenal-diamond-a.png" alt="" aria-hidden="true">
       <div>
         <div class="eyebrow">ARSENAL</div>
         <h1>Fireteam Builder</h1>
       </div>
-    </div>
+    </a>
 
     <div class="header-actions">
       <button class="button secondary" id="newListBtn" type="button">New</button>
@@ -119,9 +119,11 @@
     <div class="dialog-grid">
       <section>
         <h3>Export</h3>
-        <p>Arsenal JSON is the lossless native roster format. Text is convenient for Discord, messages, or notes.</p>
+        <p>Copy a Discord-ready roster, print or save a PDF, or export the native Arsenal JSON / plain text formats.</p>
         <div class="dialog-actions">
-          <button id="exportJsonBtn" class="button primary" type="button">Download JSON</button>
+          <button id="copyDiscordBtn" class="button primary" type="button">Copy for Discord</button>
+          <button id="printRosterBtn" class="button secondary" type="button">Print / Save PDF</button>
+          <button id="exportJsonBtn" class="button secondary" type="button">Download JSON</button>
           <button id="exportTextBtn" class="button secondary" type="button">Download Text</button>
         </div>
       </section>

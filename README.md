@@ -1,11 +1,11 @@
-# Arsenal Builder — Toggle and Banner Refinement Pass
+# Arsenal Builder — Slider + Discord + Print Pass
 
 Changes:
-- Removed toggle O/I markings.
-- Removed ON/OFF text.
-- Moved the status LED to the right side of the equipment toggle.
-- Made the header logo/title clickable to Electi Studio Blaster Vol. 07.
-- Extended hazard stripe fields farther across their banners while keeping the
-  responsive fade approach.
+- Restores a visible left-to-right sliding motion inside the full-cell MCV toggle.
+- Centers the gray/orange status lamp beneath the slider.
+- Adds **Copy for Discord** with Discord-friendly Markdown output.
+- Adds **Print / Save PDF** using a dedicated print stylesheet and the browser print dialog.
+- Ensures the Arsenal header/logo links to the official Blaster Vol. 07 page.
+- Preserves Clear List, right-side trash controls, cost-in-parentheses layout, stripe fade, and roster rules.
 
-No rules, validation, roster behavior, or builder layout changes.
+No construction-rule changes.

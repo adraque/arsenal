@@ -616,3 +616,278 @@ dialog::backdrop { background:rgba(0,0,0,.72); }
   color:inherit;
   cursor:pointer;
 }
+
+
+/* Full-cell MCV equipment toggle */
+.mcv-choice-title .mcv-inline-cost {
+  color: var(--orange);
+  font-family: ui-monospace, "Courier New", monospace;
+  font-weight: 900;
+}
+
+.mcv-choice-side {
+  width: 104px;
+  min-width: 104px;
+  display: block;
+  background: transparent;
+}
+
+.choice-action.equipment-switch.full-cell-switch {
+  width: 100%;
+  height: 100%;
+  min-height: 84px;
+  padding: 0;
+  border: 0;
+  border-left: 1px solid var(--grid-strong);
+  background: linear-gradient(to bottom, #2d3233, #1c2021);
+  display: grid;
+  place-items: center;
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.08),
+    inset 0 -1px 0 rgba(0,0,0,.5);
+}
+
+.choice-action.equipment-switch.full-cell-switch:hover {
+  background: linear-gradient(to bottom, #383e3f, #252a2b);
+}
+
+.choice-action.equipment-switch.full-cell-switch.active {
+  background: linear-gradient(to bottom, #33302a, #24211c);
+  border-left-color: var(--orange);
+  box-shadow:
+    inset 0 0 0 2px rgba(248,155,0,.55),
+    inset 0 1px 0 rgba(255,255,255,.08);
+}
+
+.full-cell-switch-plate {
+  width: 42px;
+  height: 24px;
+  border: 1px solid #0e1010;
+  background: linear-gradient(to bottom, #747b78, #343938);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.22),
+    0 2px 3px rgba(0,0,0,.5);
+  transition: transform .12s ease, background .12s ease;
+}
+
+.full-cell-switch.active .full-cell-switch-plate {
+  transform: translateY(3px);
+  background: linear-gradient(to bottom, #ffb231, var(--orange));
+  border-color: #8b5600;
+}
+
+.full-cell-switch .switch-led {
+  position: absolute;
+  right: 9px;
+  bottom: 9px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #555b58;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,.55);
+}
+
+.full-cell-switch.active .switch-led {
+  background: var(--orange);
+  box-shadow:
+    0 0 7px rgba(248,155,0,.9),
+    inset 0 0 0 1px rgba(0,0,0,.3);
+}
+
+.full-cell-switch .switch-track,
+.full-cell-switch .switch-thumb,
+.full-cell-switch .switch-mark,
+.full-cell-switch .switch-state {
+  display: none !important;
+}
+
+@media (max-width: 620px) {
+  .mcv-choice-side {
+    width: 74px;
+    min-width: 74px;
+  }
+
+  .choice-action.equipment-switch.full-cell-switch {
+    min-height: 76px;
+  }
+
+  .full-cell-switch-plate {
+    width: 34px;
+    height: 22px;
+  }
+}
+
+
+/* ==========================================================
+   Full-cell industrial slider refinement
+   ========================================================== */
+
+.full-cell-switch {
+  grid-template-rows: auto auto !important;
+  align-content: center;
+  justify-items: center;
+  gap: 10px;
+}
+
+.full-cell-switch-track {
+  position: relative;
+  width: 62px;
+  height: 28px;
+  border: 1px solid #0b0d0d;
+  background: linear-gradient(to bottom, #101313, #34393a 46%, #171a1b);
+  box-shadow:
+    inset 0 2px 5px rgba(0,0,0,.86),
+    0 1px 0 rgba(255,255,255,.12);
+  overflow: hidden;
+}
+
+.full-cell-switch-thumb {
+  position: absolute;
+  left: 3px;
+  top: 3px;
+  width: 25px;
+  height: 20px;
+  border: 1px solid #4e5451;
+  background: linear-gradient(to bottom, #d6d8d4, #7c827f);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.34),
+    0 2px 3px rgba(0,0,0,.72);
+  transition: transform .15s ease, background .15s ease, border-color .15s ease;
+}
+
+.full-cell-switch.active .full-cell-switch-thumb {
+  transform: translateX(30px);
+  border-color: #925900;
+  background: linear-gradient(to bottom, #ffba40, var(--orange));
+}
+
+.full-cell-switch .switch-led {
+  position: static !important;
+  width: 9px !important;
+  height: 9px !important;
+  margin: 0 auto;
+  border-radius: 50%;
+  background: #555b58;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,.58);
+}
+
+.full-cell-switch.active .switch-led {
+  background: var(--orange);
+  box-shadow:
+    0 0 7px rgba(248,155,0,.9),
+    inset 0 0 0 1px rgba(0,0,0,.3);
+}
+
+.full-cell-switch-plate {
+  display: none !important;
+}
+
+@media (max-width: 620px) {
+  .full-cell-switch-track {
+    width: 52px;
+    height: 26px;
+  }
+
+  .full-cell-switch-thumb {
+    width: 21px;
+    height: 18px;
+  }
+
+  .full-cell-switch.active .full-cell-switch-thumb {
+    transform: translateX(25px);
+  }
+}
+
+/* ==========================================================
+   Print / Save PDF roster sheet
+   ========================================================== */
+
+@media print {
+  @page { margin: 0.45in; }
+
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  body {
+    background: #fff !important;
+    color: #111 !important;
+  }
+
+  .app-header {
+    position: static !important;
+    min-height: auto !important;
+    padding: 0 0 12px !important;
+    margin-bottom: 14px !important;
+    background: #fff !important;
+    color: #111 !important;
+    border: 0 !important;
+    border-bottom: 4px solid var(--orange) !important;
+    overflow: visible !important;
+  }
+
+  .app-header::after,
+  .header-actions,
+  .contract-bar,
+  .mode-tabs,
+  .build-panel,
+  #gameMode,
+  .validation-box,
+  .summary-remove,
+  .summary-clear-area,
+  dialog,
+  .toast {
+    display: none !important;
+  }
+
+  .brand { color: #111 !important; }
+  .brand .eyebrow { color: var(--orange) !important; }
+
+  .app-shell {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  #buildMode,
+  .builder-grid {
+    display: block !important;
+  }
+
+  .summary-panel {
+    display: block !important;
+    position: static !important;
+    max-height: none !important;
+    overflow: visible !important;
+    border: 0 !important;
+    background: #fff !important;
+  }
+
+  .summary-heading {
+    position: static !important;
+    background: #1f1e1e !important;
+    color: #fff !important;
+    border-bottom: 5px solid var(--orange) !important;
+    break-inside: avoid;
+  }
+
+  .summary-heading .eyebrow,
+  .summary-threat strong,
+  .client-line strong.placeholder {
+    color: var(--orange) !important;
+  }
+
+  .summary-section {
+    background: #fff !important;
+    border-bottom: 1px solid #aaa !important;
+    break-inside: avoid;
+  }
+
+  .summary-section:nth-child(even) { background: #f3f3f0 !important; }
+  .summary-unit, .summary-line { break-inside: avoid; }
+}

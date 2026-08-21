@@ -653,18 +653,17 @@ function mcvChoiceCard({item, selected, mode, action, field = "", detail = [], c
   return `
     <article class="mcv-choice-card ${selected ? "selected" : ""}">
       <div class="mcv-choice-copy">
-        <div class="mcv-choice-title">${escapeHtml(item.name)}</div>
+        <div class="mcv-choice-title">
+          ${escapeHtml(item.name)}${cost != null ? ` <span class="mcv-inline-cost">(${escapeHtml(cost)})</span>` : ""}
+        </div>
         ${detail.map((line, index) => `<div class="mcv-choice-detail ${index === 0 ? "primary-detail" : ""}">${escapeHtml(line)}</div>`).join("")}
       </div>
       <div class="mcv-choice-side">
-        <div class="mcv-choice-cost-slot">
-          ${cost != null ? `<span class="entry-cost">${escapeHtml(cost)}</span>` : ""}
-        </div>
-        <button class="choice-action equipment-switch ${selected ? "active" : ""}"
+        <button class="choice-action equipment-switch full-cell-switch ${selected ? "active" : ""}"
           data-action="${action}" ${field ? `data-field="${field}"` : ""} data-id="${item.id}"
           type="button" aria-label="${escapeHtml(buttonLabel)}" aria-pressed="${selected ? "true" : "false"}">
-          <span class="switch-track" aria-hidden="true">
-            <span class="switch-thumb"></span>
+          <span class="full-cell-switch-track" aria-hidden="true">
+            <span class="full-cell-switch-thumb"></span>
           </span>
           <span class="switch-led" aria-hidden="true"></span>
         </button>
@@ -1165,6 +1164,111 @@ function exportRosterText() {
   downloadFile(`${safeFileName(state.roster.name)}.txt`, lines.join("\n"), "text/plain");
 }
 
+function buildDiscordRoster() {
+  const result = validateRoster();
+  const client = byId(state.data.corporateClients, state.roster.corporateClient);
+  const lines = [
+    `**${state.roster.name || "Untitled Operation"}**`,
+    `**Corporate Client:** ${client?.name || "Not Selected"}`,
+    `**Threat:** ${result.total} / ${state.roster.threatLimit}`,
+    ""
+  ];
+
+  const profile = byId(state.data.mcvProfiles, state.roster.mcv.profile);
+  if (profile) {
+    lines.push(`__MCV — ${profile.name}__`);
+    const component = byId(state.data.mcvIntegratedComponents, state.roster.mcv.integratedComponent);
+    const shield = byId(state.data.mcvShields, state.roster.mcv.shield);
+    const sidearm = byId(state.data.mcvWeapons, state.roster.mcv.sidearm);
+    if (component) lines.push(`• Integrated Component: ${component.name}`);
+    if (shield) lines.push(`• Shield: ${shield.name}`);
+    if (sidearm) lines.push(`• Sidearm: ${sidearm.name}${sidearm.threat ? ` (${sidearm.threat})` : ""}`);
+    if (state.roster.mcv.primaryWeapons.length) {
+      lines.push(`• Primary: ${state.roster.mcv.primaryWeapons.map(id => {
+        const w = byId(state.data.mcvWeapons, id);
+        return `${w?.name || id}${w?.threat ? ` (${w.threat})` : ""}`;
+      }).join(", ")}`);
+    }
+    if (state.roster.mcv.equipment.length) {
+      lines.push(`• Equipment: ${state.roster.mcv.equipment.map(id => {
+        const eq = byId(state.data.mcvEquipment, id) || byId(state.data.mcvWeapons, id);
+        return `${eq?.name || id}${eq?.threat ? ` (${eq.threat})` : ""}`;
+      }).join(", ")}`);
+    }
+    lines.push("");
+  }
+
+  const pilots = state.roster.infantry.filter(x => byId(state.data.infantryUnits, x.unitId)?.type === "pilot");
+  if (pilots.length) {
+    lines.push("__Pilots__");
+    for (const e of pilots) {
+      const u = byId(state.data.infantryUnits, e.unitId);
+      const total = (u?.threat || 0) * e.quantity;
+      lines.push(`• ${e.quantity > 1 ? `${e.quantity}× ` : ""}${u?.name || e.unitId}${total ? ` — ${total}` : ""}`);
+    }
+    lines.push("");
+  }
+
+  const infantry = state.roster.infantry.filter(x => byId(state.data.infantryUnits, x.unitId)?.type !== "pilot");
+  if (infantry.length) {
+    lines.push("__Infantry__");
+    for (const e of infantry) {
+      const u = byId(state.data.infantryUnits, e.unitId);
+      const total = (u?.threat || 0) * e.quantity;
+      const weapon = e.config?.weaponChoice
+        ? byId(state.data.infantryWeapons, e.config.weaponChoice)?.name || e.config.weaponChoice
+        : null;
+      lines.push(`• ${e.quantity > 1 ? `${e.quantity}× ` : ""}${u?.name || e.unitId}${weapon ? ` — ${weapon}` : ""}${total ? ` — ${total}` : ""}`);
+    }
+    lines.push("");
+  }
+
+  if (state.roster.orbitalOrdnance.length) {
+    lines.push("__Orbital Ordnance__");
+    for (const id of state.roster.orbitalOrdnance) {
+      const o = byId(state.data.orbitalOrdnance, id);
+      lines.push(`• ${o?.name || id}${o?.threat ? ` — ${o.threat}` : ""}`);
+    }
+    lines.push("");
+  }
+
+  if (state.roster.backupMCV) {
+    const b = byId(state.data.backupMCVs, state.roster.backupMCV);
+    lines.push(`__Backup MCV__`);
+    lines.push(`• ${b?.name || state.roster.backupMCV}${b?.threat ? ` — ${b.threat}` : ""}`);
+  }
+
+  return lines.join("\n").trim();
+}
+
+async function copyDiscordRoster() {
+  const text = buildDiscordRoster();
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+    } else {
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      textarea.setAttribute("readonly", "");
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.select();
+      const copied = document.execCommand("copy");
+      textarea.remove();
+      if (!copied) throw new Error("Copy command failed");
+    }
+    showToast("Discord roster copied.");
+  } catch (err) {
+    showToast("Could not copy automatically. Use Download Text instead.");
+  }
+}
+
+function printRoster() {
+  if ($("#manageDialog").open) $("#manageDialog").close();
+  setTimeout(() => window.print(), 50);
+}
+
 function downloadFile(name, content, type) {
   const blob = new Blob([content], {type});
   const url = URL.createObjectURL(blob);
@@ -1368,6 +1472,8 @@ $("#newListBtn").addEventListener("click", () => {
 
 $("#manageBtn").addEventListener("click", () => $("#manageDialog").showModal());
 $("#closeManageBtn").addEventListener("click", () => $("#manageDialog").close());
+$("#copyDiscordBtn").addEventListener("click", copyDiscordRoster);
+$("#printRosterBtn").addEventListener("click", printRoster);
 $("#exportJsonBtn").addEventListener("click", exportRosterJson);
 $("#exportTextBtn").addEventListener("click", exportRosterText);
 
