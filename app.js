@@ -295,16 +295,30 @@ function renderMcvTab(q) {
   const equipment = [...chassisEquipment, ...weaponEquipment];
   const backup = state.data.backupMCVs[0];
 
+  const currentMcvLoadout = [
+    byId(state.data.mcvProfiles, m.profile)?.name,
+    byId(state.data.mcvIntegratedComponents, m.integratedComponent)?.name,
+    byId(state.data.mcvShields, m.shield)?.name,
+    byId(state.data.mcvWeapons, m.sidearm)?.name,
+    ...(m.primaryWeapons || []).map(id => byId(state.data.mcvWeapons, id)?.name),
+    ...(m.equipment || []).map(id =>
+      byId(state.data.mcvEquipment, id)?.name ||
+      byId(state.data.mcvWeapons, id)?.name
+    )
+  ].filter(Boolean);
+
   root.innerHTML = `
     ${stats ? `
-      <section class="build-section">
+      <section class="build-section current-mcv-sticky">
         <div class="build-section-title"><strong>Current MCV</strong><span>chassis + installed hardware</span></div>
         <div class="stat-row stat-row-three">
           ${statChip("Speed", stats.speed)}
           ${statChip("Defense", stats.defense)}
           ${statChip("Armor", stats.armor)}
         </div>
-        <div class="subtle mcv-state-note">Pilot-derived Armor, Actions and Tactics are applied in Game Mode only while a Pilot is mounted.</div>
+        <div class="mcv-current-loadout">
+          ${currentMcvLoadout.map(name => `<span>${escapeHtml(name)}</span>`).join("")}
+        </div>
       </section>
     ` : ""}
 
@@ -672,8 +686,7 @@ function mcvChoiceCard({item, selected, mode, action, field = "", detail = [], c
   `;
 }
 
-function clearFireteamSelections() {
-  state.roster.corporateClient = null;
+function clearMainMcv() {
   state.roster.mcv = {
     profile: null,
     integratedComponent: null,
@@ -682,6 +695,15 @@ function clearFireteamSelections() {
     primaryWeapons: [],
     equipment: []
   };
+
+  if (state.gameState && Object.prototype.hasOwnProperty.call(state.gameState, "main-mcv")) {
+    delete state.gameState["main-mcv"];
+  }
+}
+
+function clearFireteamSelections() {
+  state.roster.corporateClient = null;
+  clearMainMcv();
   state.roster.infantry = [];
   state.roster.backupMCV = null;
   state.roster.orbitalOrdnance = [];
@@ -768,7 +790,19 @@ function summaryMcvSection() {
 
   return `
     <section class="summary-section">
-      <div class="summary-section-head"><h3>MCV</h3><span>${profile ? "configured live" : "not selected"}</span></div>
+      <div class="summary-section-head">
+        <h3>MCV</h3>
+        ${profile ? `
+          <div class="summary-section-head-actions">
+            <span>configured live</span>
+            <button class="summary-remove" data-action="summary-remove-mcv"
+              type="button" title="Remove MCV from Fireteam"
+              aria-label="Remove ${escapeHtml(profile.name)} MCV and clear its configuration">
+              ${trashIcon()}
+            </button>
+          </div>
+        ` : `<span>not selected</span>`}
+      </div>
       ${profile ? `
         <div class="summary-primary">${escapeHtml(profile.name)} MCV</div>
         ${stats ? `<div class="summary-unit-detail">SPD ${stats.speed} · DEF ${stats.defense} · ARM ${stats.armor}</div>` : ""}
@@ -1337,7 +1371,14 @@ document.addEventListener("click", e => {
   const id = actionEl.dataset.id;
 
   if (action === "set-mcv-field") {
-    state.roster.mcv[actionEl.dataset.field] = id;
+    const field = actionEl.dataset.field;
+
+    if (field === "profile" && state.roster.mcv.profile === id) {
+      clearMainMcv();
+      showToast("MCV removed.");
+    } else {
+      state.roster.mcv[field] = id;
+    }
   } else if (action === "toggle-primary") {
     toggleSelection(state.roster.mcv.primaryWeapons, id, effectiveLimits().primaryMax);
   } else if (action === "toggle-equipment") {
@@ -1365,6 +1406,9 @@ document.addEventListener("click", e => {
     state.roster.orbitalOrdnance = state.roster.orbitalOrdnance.filter(x => x !== id);
   } else if (action === "summary-remove-backup") {
     state.roster.backupMCV = null;
+  } else if (action === "summary-remove-mcv") {
+    clearMainMcv();
+    showToast("MCV removed.");
   } else if (action === "clear-fireteam") {
     const confirmed = confirm(
       "Clear this Fireteam?\n\nThis removes the MCV configuration, Pilots, Infantry, Corporate Client, Ordnance, and Backup MCV. The operation name and Threat limit will be kept."
